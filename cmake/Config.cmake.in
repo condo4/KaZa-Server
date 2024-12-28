@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+
+set(KAZA_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/@include_install_dir@")
+set(KAZA_LIBRARIES "KaZaLib")
+check_required_components("@CMakeModuleName@")
