@@ -2,7 +2,7 @@
 set -e
 
 if [ "$1" = "remove" ]; then
-    systemctl stop kazaserver.service
-    systemctl disable kazaserver.service
+    systemctl stop KaZaServer.service
+    systemctl disable KaZaServer.service
     systemctl daemon-reload
 fi

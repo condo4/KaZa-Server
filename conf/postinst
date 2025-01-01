@@ -9,6 +9,6 @@ if [ "$1" = "configure" ]; then
 
     # Activer et démarrer le service
     systemctl daemon-reload
-    systemctl enable kazaserver.service
-    systemctl start kazaserver.service
+    systemctl enable KaZaServer.service
+    systemctl start KaZaServer.service
 fi

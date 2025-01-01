@@ -28,6 +28,8 @@ add_executable(KaZaServer
   src/kazaremoteconnection.h src/kazaremoteconnection.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
   conf/KaZaServer.service
+  conf/postinst
+  conf/postrm
 )
 
 target_include_directories(KaZaServer PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
