@@ -14,7 +14,7 @@ KaZaManager *KaZaManager::m_instance = {nullptr};
 
 KaZaManager::KaZaManager(QObject *parent)
     : QObject{parent}
-    , m_settings("/etc/kaza.conf", QSettings::Format::IniFormat)
+    , m_settings("/etc/KaZaServer.conf", QSettings::Format::IniFormat)
 {
     QString qmlconf = m_settings.value("Server/qml").toString();
     m_instance = this;
