@@ -98,7 +98,7 @@ KaZaManager *KaZaManager::getInstance() {
 void KaZaManager::registerObject(KaZaObject* obj) {
     if(!m_instance)
     {
-        qFatal() << "No KaZaManager object";
+        qWarning() << "No KaZaManager object";
     }
     m_instance->m_objects.append(obj);
 }
@@ -107,9 +107,9 @@ void KaZaManager::registerObject(KaZaObject* obj) {
 KaZaObject* KaZaManager::getObject(const QString &name) {
     if(!m_instance)
     {
-        qFatal() << "No KaZaManager object";
+        qWarning() << "No KaZaManager object";
     }
-    for(KaZaObject* obj: m_instance->m_objects)
+    for(KaZaObject* obj: std::as_const(m_instance->m_objects))
     {
         if(obj->name() == name)
         {
@@ -122,7 +122,7 @@ KaZaObject* KaZaManager::getObject(const QString &name) {
 QVariant KaZaManager::setting(QString id) {
     if(!m_instance)
     {
-        qFatal() << "No KaZaManager object";
+        qWarning() << "No KaZaManager object";
     }
     return m_instance->m_settings.value(id);
 }
@@ -130,7 +130,7 @@ QVariant KaZaManager::setting(QString id) {
 QString KaZaManager::appChecksum() {
     if(!m_instance)
     {
-        qFatal() << "No KaZaManager object";
+        qWarning() << "No KaZaManager object";
         return QString();
     }
     return m_instance->m_appChecksum;
@@ -139,7 +139,7 @@ QString KaZaManager::appChecksum() {
 QString KaZaManager::appFilename() {
     if(!m_instance)
     {
-        qFatal() << "No KaZaManager object";
+        qWarning() << "No KaZaManager object";
         return QString();
     }
     return m_instance->m_appFilename;
