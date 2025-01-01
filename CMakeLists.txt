@@ -81,3 +81,25 @@ install(
     EXPORT "${targets_export_name}"
     DESTINATION "${config_install_dir}"
 )
+
+
+if(NOT CMAKE_CROSSCOMPILING AND NOT DISABLE_PKG)
+    if(EXISTS /etc/debian_version)
+        message(STATUS "Build for debian package")
+        set(BUILD_DEBIAN_PACKAGE ON)
+    endif()
+endif()
+
+if(BUILD_DEBIAN_PACKAGE)
+    set(DEB_DEPEND "")
+    file(READ /etc/debian_version DEBIAN_VERSION)
+    string(REGEX MATCH "^[0-9]+" DEBIAN_MAJOR "${DEBIAN_VERSION}")
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_PACKAGE_NAME "kaza-server")
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+    set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_PROJECT_VERSION_PATCH}-debian${DEBIAN_MAJOR}")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6 qml6-module-qtqml")
+    set(CPACK_PACKAGE_DESCRIPTION "KaZa Server")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Fabien Proriol <fabien.proriol@kazoe.org>")
+    include(CPack)
+endif()
