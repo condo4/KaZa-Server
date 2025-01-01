@@ -46,23 +46,32 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 void KaZaRemoteConnection::__clientconf() {
     m_socket->write("<?xml version='1.0'?>\n");
     m_socket->write("<param>\n");
-    m_socket->write("\t<sslhost>" + KaZaManager::setting("client/host").toString().trimmed().toUtf8() + "</sslhost>\n");
+    m_socket->write("\t<sslhost>" + KaZaManager::setting("Client/host").toString().trimmed().toUtf8() + "</sslhost>\n");
     m_socket->write("\t<sslport>" + KaZaManager::setting("ssl/port").toString().trimmed().toUtf8() + "</sslport>\n");
     m_socket->write("\t<certificate>");
-    QFile certificate(KaZaManager::setting("client/cert_file").toString());
-    certificate.open(QFile::ReadOnly);
+    QFile certificate(KaZaManager::setting("ssl/client_cert_file").toString());
+    if(!certificate.open(QFile::ReadOnly))
+    {
+        qWarning() << "Can't open " << certificate.fileName();
+    }
     m_socket->write(certificate.readAll());
     certificate.close();
     m_socket->write("</certificate>\n");
     m_socket->write("\t<key>");
-    QFile key(KaZaManager::setting("client/private_key_file").toString());
-    key.open(QFile::ReadOnly);
+    QFile key(KaZaManager::setting("ssl/client_private_key_file").toString());
+    if(!key.open(QFile::ReadOnly))
+    {
+        qWarning() << "Can't open " << key.fileName();
+    }
     m_socket->write(key.readAll());
     key.close();
     m_socket->write("</key>\n");
     m_socket->write("\t<ca>");
     QFile ca(KaZaManager::setting("ssl/ca_file").toString());
-    ca.open(QFile::ReadOnly);
+    if(!ca.open(QFile::ReadOnly))
+    {
+        qWarning() << "Can't open " << ca.fileName();
+    }
     m_socket->write(ca.readAll());
     ca.close();
     m_socket->write("</ca>\n");
