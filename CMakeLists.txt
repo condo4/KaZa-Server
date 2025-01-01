@@ -59,8 +59,12 @@ set_target_properties(KaZaLib PROPERTIES PUBLIC_HEADER "${KAZA_HEADERS}")
 install(
     TARGETS "KaZaLib"
     EXPORT "${targets_export_name}"
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION "${include_install_dir}"
+    LIBRARY
+        COMPONENT runtime
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER
+        COMPONENT dev
+        DESTINATION "${include_install_dir}"
 )
 write_basic_package_version_file(
     "${version_config}" COMPATIBILITY SameMajorVersion
@@ -75,11 +79,13 @@ configure_package_config_file(
 install(
     FILES "${project_config}" "${version_config}"
     DESTINATION "${config_install_dir}"
+    COMPONENT dev
 )
 
 install(
     EXPORT "${targets_export_name}"
     DESTINATION "${config_install_dir}"
+    COMPONENT dev
 )
 
 
@@ -95,11 +101,21 @@ if(BUILD_DEBIAN_PACKAGE)
     file(READ /etc/debian_version DEBIAN_VERSION)
     string(REGEX MATCH "^[0-9]+" DEBIAN_MAJOR "${DEBIAN_VERSION}")
     set(CPACK_GENERATOR "DEB")
-    set(CPACK_PACKAGE_NAME "kaza-server")
-    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-    set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_PROJECT_VERSION_PATCH}-debian${DEBIAN_MAJOR}")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6 qml6-module-qtqml")
-    set(CPACK_PACKAGE_DESCRIPTION "KaZa Server")
+    set(CPACK_PACKAGE_VERSION "1.0.0")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Fabien Proriol <fabien.proriol@kazoe.org>")
+    set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_PROJECT_VERSION_PATCH}-deb${DEBIAN_MAJOR}")
+
+    set(CPACK_DEBIAN_PACKAGE_NAME "kaza-server")
+    set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "KaZa server")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6 qml6-module-qtqml")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+
+    set(CPACK_DEBIAN_DEV_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev")
+    set(CPACK_COMPONENT_DEV_DESCRIPTION "KaZa server developpement files")
+    set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_NAME} (= ${CPACK_PACKAGE_VERSION})")
+
+    set(CPACK_COMPONENTS_ALL runtime dev)
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+
     include(CPack)
 endif()
