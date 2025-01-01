@@ -27,18 +27,23 @@ add_executable(KaZaServer
   src/kazaconnection.h src/kazaconnection.cpp
   src/kazaremoteconnection.h src/kazaremoteconnection.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
+  conf/KaZaServer.service
 )
 
 target_include_directories(KaZaServer PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
-target_link_libraries(KaZaServer KaZaLib Qt6::Core Qt6::Qml Qt6::Sql)
+set_target_properties(KaZaLib PROPERTIES VERSION 1.0.0 SOVERSION 1)
+target_link_libraries(KaZaServer KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd)
+
 
 include(GNUInstallDirs)
 
 
 install(TARGETS KaZaServer
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RUNTIME
+        COMPONENT bin
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 
@@ -60,7 +65,8 @@ install(
     TARGETS "KaZaLib"
     EXPORT "${targets_export_name}"
     LIBRARY
-        COMPONENT runtime
+        COMPONENT bin
+        NAMELINK_COMPONENT dev
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
         COMPONENT dev
@@ -80,6 +86,13 @@ install(
     FILES "${project_config}" "${version_config}"
     DESTINATION "${config_install_dir}"
     COMPONENT dev
+)
+
+
+install(
+    FILES conf/KaZaServer.service
+    DESTINATION /lib/systemd/system
+    COMPONENT bin
 )
 
 install(
@@ -105,16 +118,16 @@ if(BUILD_DEBIAN_PACKAGE)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Fabien Proriol <fabien.proriol@kazoe.org>")
     set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_PROJECT_VERSION_PATCH}-deb${DEBIAN_MAJOR}")
 
-    set(CPACK_DEBIAN_PACKAGE_NAME "kaza-server")
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "KaZa server")
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6 qml6-module-qtqml")
     set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/conf/postinst;${CMAKE_CURRENT_SOURCE_DIR}/conf/postrm")
 
     set(CPACK_DEBIAN_DEV_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev")
     set(CPACK_COMPONENT_DEV_DESCRIPTION "KaZa server developpement files")
     set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_NAME} (= ${CPACK_PACKAGE_VERSION})")
 
-    set(CPACK_COMPONENTS_ALL runtime dev)
+    set(CPACK_COMPONENTS_ALL bin dev)
     set(CPACK_DEB_COMPONENT_INSTALL ON)
 
     include(CPack)

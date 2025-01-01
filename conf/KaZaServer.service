@@ -1,0 +1,13 @@
+[Unit]
+Description=KaZa Daemon
+After=network.target knxd.service
+
+[Service]
+ExecStart=/usr/bin/KaZaServer
+Type=notify
+User=kazaserver
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target network-online.target

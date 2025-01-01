@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include "kazamanager.h"
+#include <systemd/sd-daemon.h>
 
 int main(int argc, char *argv[])
 {
@@ -7,5 +8,6 @@ int main(int argc, char *argv[])
 
     KaZaManager manager;
 
+    sd_notify(0, "READY=1");
     return a.exec();
 }

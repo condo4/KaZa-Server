@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    # Créer l'utilisateur si nécessaire
+    if ! getent passwd kazaserver > /dev/null; then
+        adduser --system --group --no-create-home kazaserver
+    fi
+
+    # Activer et démarrer le service
+    systemctl daemon-reload
+    systemctl enable kazaserver.service
+    systemctl start kazaserver.service
+fi
