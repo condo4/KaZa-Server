@@ -2,6 +2,7 @@
 #include "kazaconnection.h"
 #include "kazaremoteconnection.h"
 #include "kazaobject.h"
+#include "cron/qcron.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -20,6 +21,7 @@ KaZaManager::KaZaManager(QObject *parent)
     m_instance = this;
 
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
+    qmlRegisterType<QCron>("org.kazoe.kaza", 1, 0, "Cron");
     if(!qmlconf.isEmpty())
     {
         qDebug() << "Start QML config" << qmlconf;
