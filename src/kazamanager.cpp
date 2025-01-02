@@ -70,14 +70,6 @@ KaZaManager::KaZaManager(QObject *parent)
 
     /* Calculate current App Checksum */
     m_appFilename = m_settings.value("Client/app").toString();
-    QFile f(m_appFilename);
-    if (f.open(QFile::ReadOnly)) {
-        QCryptographicHash hash(QCryptographicHash::Algorithm::Md5);
-        if (hash.addData(&f)) {
-            m_appChecksum = hash.result().toBase64();
-        }
-    }
-
 
     QString dbdriver = m_settings.value("database/driver").toString();
     if(!dbdriver.isEmpty())
@@ -128,12 +120,20 @@ QVariant KaZaManager::setting(QString id) {
 }
 
 QString KaZaManager::appChecksum() {
+    QString appChecksum;
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
         return QString();
     }
-    return m_instance->m_appChecksum;
+    QFile f(m_instance->m_appFilename);
+    if (f.open(QFile::ReadOnly)) {
+        QCryptographicHash hash(QCryptographicHash::Algorithm::Md5);
+        if (hash.addData(&f)) {
+            appChecksum = hash.result().toBase64();
+        }
+    }
+    return appChecksum;
 }
 
 QString KaZaManager::appFilename() {

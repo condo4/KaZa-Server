@@ -25,7 +25,6 @@ class KaZaManager : public QObject
     QList<KaZaConnection*> m_clients;
     QTcpServer m_remotecontrol;
     QList<KaZaRemoteConnection*> m_remoteclients;
-    QString m_appChecksum;
     QString m_appFilename;
 
     static KaZaManager *m_instance;
