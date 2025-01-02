@@ -48,6 +48,9 @@ private slots:
     void _pendingRemoteConnectionAvailable();
     void _remoteDisconnection();
 
+signals:
+    void objectAdded();
+
 };
 
 #endif // KAZAMANAGER_H
