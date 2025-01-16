@@ -27,6 +27,7 @@ add_executable(KaZaServer
   src/kazaconnection.h src/kazaconnection.cpp
   src/kazaremoteconnection.h src/kazaremoteconnection.cpp
   src/kzobject.h src/kzobject.cpp
+  src/kazaelement.h src/kazaelement.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
   src/cron/holiday.cpp src/cron/holiday.h
   src/cron/qcron.cpp src/cron/qcron.h

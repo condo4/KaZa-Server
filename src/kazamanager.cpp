@@ -2,6 +2,7 @@
 #include "kazaconnection.h"
 #include "kazaremoteconnection.h"
 #include "kazaobject.h"
+#include "kazaelement.h"
 #include "kzobject.h"
 #include "cron/qcron.h"
 
@@ -22,6 +23,7 @@ KaZaManager::KaZaManager(QObject *parent)
     m_instance = this;
 
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
+    qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
     qmlRegisterType<QCron>("org.kazoe.kaza", 1, 0, "Cron");
     if(!qmlconf.isEmpty())
