@@ -155,7 +155,12 @@ QString KaZaManager::appFilename() {
 bool KaZaManager::runDbQuery(const QString &query) const
 {
     QSqlQuery q;
-    return q.exec(query);
+    bool res = q.exec(query);
+    if(!res)
+    {
+        qWarning().noquote().nospace() << query << " failed: " << q.lastError().text();
+    }
+    return res;
 }
 
 void KaZaManager::_pendingConnectionAvailable() {
