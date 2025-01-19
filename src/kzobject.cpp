@@ -61,3 +61,9 @@ void KzObject::connectObject()
         }
     }
 }
+
+QVariant KzObject::rawid() const
+{
+    if(!m_kazaobj) return QString();
+    return m_kazaobj->rawid();
+}

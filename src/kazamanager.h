@@ -41,6 +41,9 @@ public:
     static QString appChecksum();
     static QString appFilename();
 
+public slots:
+    bool runDbQuery(const QString &query) const;
+
 
 private slots:
     void _pendingConnectionAvailable();

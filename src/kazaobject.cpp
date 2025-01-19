@@ -37,6 +37,12 @@ void KaZaObject::setUnit(const QString &newUnit) {
     }
 }
 
+QVariant KaZaObject::rawid() const
+{
+    // By default, no data
+    return QVariant();
+}
+
 QVariant KaZaObject::value() const
 {
     return m_value;

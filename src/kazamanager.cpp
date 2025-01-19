@@ -12,6 +12,7 @@
 #include <QSslKey>
 #include <QSqlDatabase>
 #include <QSqlError>
+#include <QSqlQuery>
 
 KaZaManager *KaZaManager::m_instance = {nullptr};
 
@@ -149,6 +150,12 @@ QString KaZaManager::appFilename() {
         return QString();
     }
     return m_instance->m_appFilename;
+}
+
+bool KaZaManager::runDbQuery(const QString &query) const
+{
+    QSqlQuery q;
+    return q.exec(query);
 }
 
 void KaZaManager::_pendingConnectionAvailable() {

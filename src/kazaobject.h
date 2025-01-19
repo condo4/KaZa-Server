@@ -26,6 +26,8 @@ public:
     QString unit() const;
     void setUnit(const QString &newName);
 
+    virtual QVariant rawid() const;
+
 signals:
     void valueChanged();
     void nameChanged();

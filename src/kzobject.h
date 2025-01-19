@@ -25,6 +25,7 @@ public slots:
     void set(const QVariant &newValue);
     void refresh();
     void connectObject();
+    QVariant rawid() const;
 
 signals:
     void objectChanged();
