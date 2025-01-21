@@ -12,7 +12,9 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     : QObject{parent}
     , m_protocol(socket)
 {
+#ifdef DEBUG_CONNECTION
     qDebug().noquote().nospace() << "SSL " << id() << ": Connected";
+#endif
     QObject::connect(&m_protocol, &KaZaProtocol::disconnectFromHost, this, &KaZaConnection::disconnectFromHost);
     QObject::connect(&m_protocol, &KaZaProtocol::frameCommand, this, &KaZaConnection::_processFrameSystem);
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
@@ -29,9 +31,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
     {
         // Register user and send app Checksum
         m_user = c[1];
-#ifdef DEBUG_CONNECTION
-        qDebug().noquote().nospace() << "SSL " << id() << ": System User is " << m_user;
-#endif
+        qDebug().noquote().nospace() << "SSL " << id() << " " << m_user << " Connected";
         m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
         return;
     }
