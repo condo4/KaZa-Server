@@ -5,7 +5,6 @@
 #include <QSettings>
 #include <QQmlApplicationEngine>
 #include <QSslServer>
-#include "cron/scheduler.h"
 
 // #define DEBUG_KNX
 // #define DEBUG_CONNECTION
@@ -27,7 +26,6 @@ class KaZaManager : public QObject
     QTcpServer m_remotecontrol;
     QList<KaZaRemoteConnection*> m_remoteclients;
     QString m_appFilename;
-    Scheduler m_cron;
 
     static KaZaManager *m_instance;
 

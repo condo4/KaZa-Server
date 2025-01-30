@@ -4,7 +4,7 @@
 #include "kazaobject.h"
 #include "kazaelement.h"
 #include "kzobject.h"
-#include "cron/qcron.h"
+#include "scheduler.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -26,7 +26,7 @@ KaZaManager::KaZaManager(QObject *parent)
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
     qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
-    qmlRegisterType<QCron>("org.kazoe.kaza", 1, 0, "Cron");
+    qmlRegisterType<Scheduler>("org.kazoe.kaza", 1, 0, "Scheduler");
     if(!qmlconf.isEmpty())
     {
         qDebug() << "Start QML config" << qmlconf;
