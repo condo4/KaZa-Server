@@ -126,6 +126,11 @@ Scheduler::Scheduler(QObject *parent)
     : QObject{parent}
     , d_ptr(new SchedulerPrivate(this))
 {
+    QObject::connect(this, &Scheduler::minuteChanged, this, &Scheduler::paternChanged);
+    QObject::connect(this, &Scheduler::hourChanged, this, &Scheduler::paternChanged);
+    QObject::connect(this, &Scheduler::dayChanged, this, &Scheduler::paternChanged);
+    QObject::connect(this, &Scheduler::monthChanged, this, &Scheduler::paternChanged);
+    QObject::connect(this, &Scheduler::wdayChanged, this, &Scheduler::paternChanged);
 }
 
 void Scheduler::__tick()
@@ -246,4 +251,26 @@ void Scheduler::setMinute(const QString &newMinute)
         return;
     d->m_filter_minute = createFilter(newMinute);
     emit minuteChanged();
+}
+
+QString Scheduler::patern() const
+{
+    return minute() + " " + hour() + " " + day() + " " + month() + " " + wday();
+}
+
+void Scheduler::setPatern(const QString &newPatern)
+{
+    if (patern() == newPatern)
+        return;
+    QStringList tab = newPatern.split(" ");
+    if(tab.size() != 5)
+    {
+        qWarning() << "Pattern error: " << newPatern << " (should be 5 fields)";
+        return;
+    }
+    setMinute(tab[0]);
+    setHour(tab[1]);
+    setDay(tab[2]);
+    setMonth(tab[3]);
+    setWday(tab[4]);
 }

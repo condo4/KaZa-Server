@@ -17,6 +17,7 @@ class Scheduler : public QObject
     Q_PROPERTY(QString wday READ wday WRITE setWday NOTIFY wdayChanged)
     Q_PROPERTY(QString hour READ hour WRITE setHour NOTIFY hourChanged)
     Q_PROPERTY(QString minute READ minute WRITE setMinute NOTIFY minuteChanged)
+    Q_PROPERTY(QString patern READ patern WRITE setPatern NOTIFY paternChanged FINAL)
 
 public:
     explicit Scheduler(QObject *parent = nullptr);
@@ -40,6 +41,9 @@ public:
     QString minute() const;
     void setMinute(const QString &newMinute);
 
+    QString patern() const;
+    void setPatern(const QString &newPatern);
+
 signals:
     void yearChanged();
     void monthChanged();
@@ -49,9 +53,10 @@ signals:
     void minuteChanged();
     void timeout();
 
+    void paternChanged();
+
 private slots:
     void __tick();
-
 };
 
 #endif // SCHEDULER_H
