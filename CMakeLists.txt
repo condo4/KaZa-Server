@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(KaZaServer LANGUAGES CXX VERSION 1.0.0)
+project(KaZaServer LANGUAGES CXX VERSION 1.0.1)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -35,10 +35,15 @@ add_executable(KaZaServer
   conf/postrm
 )
 
+add_executable(kls
+    src/cmd/kls.cpp
+)
+
 target_include_directories(KaZaServer PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
 set_target_properties(KaZaLib PROPERTIES VERSION 1.0.0 SOVERSION 1)
 target_link_libraries(KaZaServer KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd)
+target_link_libraries(kls Qt6::Core Qt6::Network)
 
 
 include(GNUInstallDirs)
@@ -51,6 +56,12 @@ install(TARGETS KaZaServer
         DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+install(TARGETS kls
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME
+        COMPONENT bin
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
 # CMake Module
 set(CMakeModuleName "KaZa")
@@ -119,7 +130,7 @@ if(BUILD_DEBIAN_PACKAGE)
     file(READ /etc/debian_version DEBIAN_VERSION)
     string(REGEX MATCH "^[0-9]+" DEBIAN_MAJOR "${DEBIAN_VERSION}")
     set(CPACK_GENERATOR "DEB")
-    set(CPACK_PACKAGE_VERSION "1.0.0")
+    set(CPACK_PACKAGE_VERSION "1.0.1")
     set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
     set(CPACK_DEBIAN_PACKAGE_NAME "kaza-server")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Fabien Proriol <fabien.proriol@kazoe.org>")

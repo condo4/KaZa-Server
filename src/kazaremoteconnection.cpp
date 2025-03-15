@@ -1,5 +1,6 @@
 #include "kazaremoteconnection.h"
 #include "kazamanager.h"
+#include "kazaobject.h"
 #include <QTcpSocket>
 #include <QFile>
 
@@ -35,11 +36,32 @@ void KaZaRemoteConnection::_dataReady()
 
 
 void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
-    qDebug().noquote().nospace() << "Remote " << id() << ": Command " << packet;
+    QString cmd = packet.toLower().trimmed();
+    qDebug().noquote().nospace() << "Remote " << id() << ": Command [" << cmd << "]";
 
-    if(packet == "clientconf?")
+    if(cmd == "clientconf?")
     {
         __clientconf();
+        return;
+    }
+
+    if(cmd.startsWith("obj?"))
+    {
+        QStringList lst = KaZaManager::getObjectKeys();
+        for(QString &key: lst)
+        {
+            QString line = key.leftJustified(80, ' ');
+            KaZaObject *obj = KaZaManager::getObject(key);
+            if(obj)
+            {
+                line.append(obj->value().toString());
+                line.append(" ");
+                line.append(obj->unit());
+            }
+            m_socket->write(line.toUtf8());
+            m_socket->write("\n");
+        }
+        m_socket->write("\n");
     }
 }
 

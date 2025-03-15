@@ -35,6 +35,7 @@ public:
     static KaZaManager *getInstance();
     static void registerObject(KaZaObject* obj);
     static KaZaObject* getObject(const QString &name);
+    static QStringList getObjectKeys();
     static QVariant setting(QString id);
     static QString appChecksum();
     static QString appFilename();

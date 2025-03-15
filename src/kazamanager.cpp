@@ -118,6 +118,16 @@ KaZaObject* KaZaManager::getObject(const QString &name) {
     return nullptr;
 }
 
+QStringList KaZaManager::getObjectKeys()
+{
+    QStringList res;
+    for(KaZaObject* obj: std::as_const(m_instance->m_objects))
+    {
+        res.append(obj->name());
+    }
+    return res;
+}
+
 QVariant KaZaManager::setting(QString id) {
     if(!m_instance)
     {
