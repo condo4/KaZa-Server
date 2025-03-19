@@ -4,7 +4,6 @@
 KaZaObject::KaZaObject(QObject *parent)
     : QObject{parent}
 {
-    kaZaRegisterObject(this);
 }
 
 
@@ -24,6 +23,7 @@ void KaZaObject::setName(const QString &newName) {
         m_name = newName;
         emit nameChanged();
     }
+    kaZaRegisterObject(this);
 }
 
 QString KaZaObject::unit() const {

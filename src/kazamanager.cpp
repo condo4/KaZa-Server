@@ -100,6 +100,7 @@ void KaZaManager::registerObject(KaZaObject* obj) {
         qWarning() << "No KaZaManager object";
     }
     m_instance->m_objects.append(obj);
+    emit m_instance->objectAdded();
 }
 
 

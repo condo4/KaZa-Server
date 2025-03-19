@@ -56,7 +56,6 @@ void KzObject::connectObject()
             QObject::connect(m_kazaobj, &KaZaObject::valueChanged, this, &KzObject::valueChanged);
             QObject::connect(this, &KzObject::changeRequested, m_kazaobj, &KaZaObject::changeValue);
             emit valueChanged();
-            qDebug() << "Object " << m_object << "ready";
             QObject::disconnect(KaZaManager::getInstance(), &KaZaManager::objectAdded, this, &KzObject::connectObject);
         }
     }
