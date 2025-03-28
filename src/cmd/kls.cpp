@@ -19,7 +19,16 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    socket.write("obj?\n");
+    if(argc > 1)
+    {
+        socket.write("obj? ");
+        socket.write(argv[1]);
+        socket.write("\n");
+    }
+    else
+    {
+        socket.write("obj?\n");
+    }
 
     if (!socket.waitForBytesWritten(3000)) {
         qDebug() << "Send error:" << socket.errorString();

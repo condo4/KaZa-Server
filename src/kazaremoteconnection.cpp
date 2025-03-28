@@ -47,6 +47,21 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 
     if(cmd.startsWith("obj?"))
     {
+        QStringList args = cmd.split(" ");
+        if(args.size() > 1)
+        {
+            QString key = args[1];
+            KaZaObject *obj = KaZaManager::getObject(key);
+            QString line = key.leftJustified(80, ' ');
+            line.append(obj->value().toString());
+            line.append(" ");
+            line.append(obj->unit());
+            m_socket->write(line.toUtf8());
+            m_socket->write("\n");
+            m_socket->write("\n");
+            return;
+        }
+
         QStringList lst = KaZaManager::getObjectKeys();
         for(QString &key: lst)
         {
@@ -61,6 +76,20 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
             m_socket->write(line.toUtf8());
             m_socket->write("\n");
         }
+        m_socket->write("\n");
+    }
+
+    if(cmd.startsWith("refresh"))
+    {
+        QStringList args = cmd.split(" ");
+        if(args.size() != 2)
+        {
+            qWarning() << "Invalid query" << cmd;
+        }
+        QString key = args[1];
+        KaZaObject *obj = KaZaManager::getObject(key);
+        obj->changeValue(QVariant());
+        m_socket->write("OK\n");
         m_socket->write("\n");
     }
 }
