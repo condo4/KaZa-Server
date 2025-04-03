@@ -114,7 +114,6 @@ class SchedulerPrivate {
 SchedulerPrivate::SchedulerPrivate(Scheduler *parent)
     : q_ptr(parent)
 {
-    qDebug() << "Create Scheduler";
     m_timer.setTimerType(Qt::VeryCoarseTimer);
     QObject::connect(&m_timer, &QTimer::timeout, q_ptr, &Scheduler::__tick);
     m_timer.setSingleShot(true);

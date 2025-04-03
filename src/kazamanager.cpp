@@ -86,7 +86,13 @@ KaZaManager::KaZaManager(QObject *parent)
         database.setHostName(m_settings.value("database/hostname").toString());
         database.setPort(m_settings.value("database/port").toInt());
         if(!database.open(m_settings.value("database/username").toString(), m_settings.value("database/password").toString()))
+        {
             qWarning() << "Database open error: " << database.lastError();
+        }
+        else
+        {
+            m_databaseReady = true;
+        }
     }
 }
 
@@ -165,6 +171,7 @@ QString KaZaManager::appFilename() {
 
 bool KaZaManager::runDbQuery(const QString &query) const
 {
+    if(!m_databaseReady) return false;
     QSqlQuery q;
     bool res = q.exec(query);
     if(!res)
