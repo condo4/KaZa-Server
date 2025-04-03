@@ -19,6 +19,8 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::frameCommand, this, &KaZaConnection::_processFrameSystem);
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
     QObject::connect(&m_protocol, &KaZaProtocol::frameDbQuery, this, &KaZaConnection::_processFrameDbQuery);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameSocketConnect, this, &KaZaConnection::_processFrameSocketConnect);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameSocketData, this, &KaZaConnection::_processFrameSocketData);
 }
 
 quint16 KaZaConnection::id() {
@@ -100,7 +102,6 @@ void KaZaConnection::_processFrameObject(quint16 id, QVariant value) {
 
 
 void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
-
     QSqlQuery q;
     if(q.exec(query))
     {
@@ -129,5 +130,60 @@ void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
     else
     {
         qWarning() << "QUERY FAIL " + query;
+    }
+}
+
+void KaZaConnection::_processFrameSocketConnect(uint16_t id, const QString hostname, uint16_t port)
+{
+    if(m_sockets.contains(id))
+    {
+        qWarning() << "Socket " << id << "allready used";
+        return;
+    }
+    m_sockets[id] = new QTcpSocket();
+    QObject::connect(m_sockets[id], &QTcpSocket::readyRead, this, &KaZaConnection::_sockReadyRead);
+    QObject::connect(m_sockets[id], &QTcpSocket::stateChanged, this, &KaZaConnection::_sockStateChange);
+
+    m_sockets[id]->connectToHost(hostname, port);
+}
+
+void KaZaConnection::_processFrameSocketData(uint16_t id, QByteArray data)
+{
+    if(m_sockets.contains(id))
+    {
+        m_sockets[id]->write(data);
+    }
+    else
+    {
+        qWarning() << "Can't find socket " << id;
+    }
+}
+
+void KaZaConnection::_sockReadyRead()
+{
+    QTcpSocket *sock = qobject_cast<QTcpSocket *>(QObject::sender());
+    if(sock)
+    {
+        uint16_t id = m_sockets.key(sock);
+        QByteArray data = sock->readAll();
+        m_protocol.sendSocketData(id, data);
+    }
+    else
+    {
+        qWarning() << "Can't find socket on _sockReadyRead";
+    }
+}
+
+void KaZaConnection::_sockStateChange(QAbstractSocket::SocketState state)
+{
+    QTcpSocket *sock = qobject_cast<QTcpSocket *>(QObject::sender());
+    if(sock)
+    {
+        uint16_t id = m_sockets.key(sock);
+        m_protocol.sendSocketState(id, state);
+    }
+    else
+    {
+        qWarning() << "Can't find socket on _sockStateChange";
     }
 }
