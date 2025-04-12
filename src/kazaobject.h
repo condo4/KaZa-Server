@@ -18,7 +18,7 @@ public:
 
     virtual QVariant value() const;
     virtual void setValue(QVariant);
-    virtual void changeValue(QVariant);
+    virtual void changeValue(QVariant, bool confirm = false);
 
     QString name() const;
     void setName(const QString &newName);

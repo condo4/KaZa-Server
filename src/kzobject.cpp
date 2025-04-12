@@ -35,8 +35,8 @@ QString KzObject::unit() const
 }
 
 
-void KzObject::set(const QVariant &newValue) {
-    emit changeRequested(newValue);
+void KzObject::set(const QVariant &newValue, bool confirm) {
+    emit changeRequested(newValue, confirm);
 }
 
 void KzObject::refresh()

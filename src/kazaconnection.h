@@ -29,7 +29,7 @@ signals:
 
 private slots:
     void _processFrameSystem(const QString &command);
-    void _processFrameObject(quint16 id, QVariant value);
+    void _processFrameObject(quint16 id, QVariant value, bool confirm);
     void _processFrameDbQuery(uint32_t id, QString query);
     void _processFrameSocketConnect(uint16_t id, const QString hostname, uint16_t port);
     void _processFrameSocketData(uint16_t id, QByteArray data);

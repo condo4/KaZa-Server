@@ -57,7 +57,7 @@ void KaZaObject::setValue(QVariant newValue)
     }
 }
 
-void KaZaObject::changeValue(QVariant newValue)
+void KaZaObject::changeValue(QVariant newValue, bool confirm)
 {
     KaZaObject::setValue(newValue);
 }

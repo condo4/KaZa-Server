@@ -74,7 +74,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         m_protocol.sendCommand("OBJDESC:" + name + ":" + m_obj[name]->unit());
         if(m_obj[name]->value().isValid())
         {
-            m_protocol.sendObject(m_ids[name], m_obj[name]->value());
+            m_protocol.sendObject(m_ids[name], m_obj[name]->value(), false);
         }
         return;
     }
@@ -87,17 +87,17 @@ void KaZaConnection::_objectChanged() {
 #ifdef DEBUG_CONNECTION
     qDebug() << "_objectChanged " << obj->name() << obj->value();
 #endif
-    m_protocol.sendObject(m_ids[obj->name()], obj->value());
+    m_protocol.sendObject(m_ids[obj->name()], obj->value(), false);
 }
 
-void KaZaConnection::_processFrameObject(quint16 id, QVariant value) {
+void KaZaConnection::_processFrameObject(quint16 id, QVariant value, bool confirm) {
     KaZaObject *obj = m_obj.value(m_ids.key(id), nullptr);
     if(obj == nullptr)
     {
         qWarning() << "Can't find object with id" << id;
         return;
     }
-    obj->changeValue(value);
+    obj->changeValue(value, confirm);
 }
 
 

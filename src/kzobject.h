@@ -22,7 +22,7 @@ public:
 
 public slots:
     void setObject(const QString &newObject);
-    void set(const QVariant &newValue);
+    void set(const QVariant &newValue, bool confirm=false);
     void refresh();
     void connectObject();
     QVariant rawid() const;
@@ -31,7 +31,7 @@ signals:
     void objectChanged();
     void valueChanged();
     void unitChanged();
-    void changeRequested(QVariant newData);
+    void changeRequested(QVariant newData, bool confirm);
 
 private:
     QString m_object;
