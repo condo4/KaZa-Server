@@ -29,6 +29,7 @@ add_executable(KaZaServer
   src/kzobject.h src/kzobject.cpp
   src/kazaelement.h src/kazaelement.cpp
   src/scheduler.h src/scheduler.cpp
+  src/kzalarm.h src/kzalarm.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
   conf/KaZaServer.service
   conf/postinst

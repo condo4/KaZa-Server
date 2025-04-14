@@ -11,6 +11,7 @@
 
 class KaZaObject;
 class KaZaConnection;
+class KzAlarm;
 class KaZaRemoteConnection;
 class QSqlDatabase;
 
@@ -23,6 +24,7 @@ class KaZaManager : public QObject
     QList<KaZaObject*> m_objects;
     QSslServer m_server;
     QList<KaZaConnection*> m_clients;
+    QList<KzAlarm*> m_alarms;
     QTcpServer m_remotecontrol;
     QList<KaZaRemoteConnection*> m_remoteclients;
     QString m_appFilename;
@@ -35,6 +37,8 @@ public:
 
     static KaZaManager *getInstance();
     static void registerObject(KaZaObject* obj);
+    static void registerAlarm(KzAlarm* obj);
+    static const QList<KzAlarm*>& alarms();
     static KaZaObject* getObject(const QString &name);
     static QStringList getObjectKeys();
     static QVariant setting(QString id);
@@ -53,6 +57,7 @@ private slots:
 
 signals:
     void objectAdded();
+    void alarmAdded();
 
 };
 

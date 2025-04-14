@@ -5,6 +5,7 @@
 #include "kazaelement.h"
 #include "kzobject.h"
 #include "scheduler.h"
+#include "kzalarm.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -26,6 +27,7 @@ KaZaManager::KaZaManager(QObject *parent)
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
     qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
+    qmlRegisterType<KzAlarm>("org.kazoe.kaza", 1, 0, "KzAlarm");
     qmlRegisterType<Scheduler>("org.kazoe.kaza", 1, 0, "Scheduler");
     if(!qmlconf.isEmpty())
     {
@@ -109,6 +111,24 @@ void KaZaManager::registerObject(KaZaObject* obj) {
     emit m_instance->objectAdded();
 }
 
+void KaZaManager::registerAlarm(KzAlarm *obj)
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+    }
+    m_instance->m_alarms.append(obj);
+    emit m_instance->alarmAdded();
+}
+
+const QList<KzAlarm *> &KaZaManager::alarms()
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+    }
+    return m_instance->m_alarms;
+}
 
 KaZaObject* KaZaManager::getObject(const QString &name) {
     if(!m_instance)

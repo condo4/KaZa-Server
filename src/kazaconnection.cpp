@@ -1,6 +1,7 @@
 #include "kazaconnection.h"
 #include "kazamanager.h"
 #include "kazaobject.h"
+#include "kzalarm.h"
 #include <QTcpSocket>
 #include <QFile>
 #include <QBuffer>
@@ -77,6 +78,31 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
             m_protocol.sendObject(m_ids[name], m_obj[name]->value(), false);
         }
         return;
+    }
+    if(c[0] == "ALARMS")
+    {
+        m_user = c[1];
+        QString result = "<?xml version='1.0'?>\n";
+        result.append("<alarms>");
+        for(const KzAlarm *alarm: KaZaManager::alarms())
+        {
+            if(!alarm->enable())
+                continue;
+            result.append("<alarm>");
+            result.append("<title>");
+            result.append(alarm->title());
+            result.append("</title>");
+            result.append("<message>");
+            result.append(alarm->message());
+            result.append("</message>");
+            result.append("</alarm>");
+        }
+        result.append("</alarms>");
+        QByteArray inputData = result.toUtf8();
+        QByteArray compressedData = qCompress(inputData);
+        QByteArray base64Data = compressedData.toBase64();
+        qDebug() << "ALARM:" + QString::fromUtf8(base64Data);
+        m_protocol.sendCommand("ALARM:" + QString::fromUtf8(base64Data));
     }
 
     qWarning().noquote().nospace() << "SSL " << id() << ": Unknown System Command " << command;
