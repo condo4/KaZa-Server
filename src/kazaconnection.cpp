@@ -79,6 +79,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         }
         return;
     }
+
     if(c[0] == "ALARMS")
     {
         m_user = c[1];
@@ -101,8 +102,8 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         QByteArray inputData = result.toUtf8();
         QByteArray compressedData = qCompress(inputData);
         QByteArray base64Data = compressedData.toBase64();
-        qDebug() << "ALARM:" + QString::fromUtf8(base64Data);
         m_protocol.sendCommand("ALARM:" + QString::fromUtf8(base64Data));
+        return;
     }
 
     qWarning().noquote().nospace() << "SSL " << id() << ": Unknown System Command " << command;
