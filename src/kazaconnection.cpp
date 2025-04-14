@@ -83,22 +83,16 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
     if(c[0] == "ALARMS")
     {
         m_user = c[1];
-        QString result = "<?xml version='1.0'?>\n";
-        result.append("<alarms>");
+        QString result;
         for(const KzAlarm *alarm: KaZaManager::alarms())
         {
             if(!alarm->enable())
                 continue;
-            result.append("<alarm>");
-            result.append("<title>");
             result.append(alarm->title());
-            result.append("</title>");
-            result.append("<message>");
+            result.append("\n");
             result.append(alarm->message());
-            result.append("</message>");
-            result.append("</alarm>");
+            result.append("\n\n");
         }
-        result.append("</alarms>");
         QByteArray inputData = result.toUtf8();
         QByteArray compressedData = qCompress(inputData);
         QByteArray base64Data = compressedData.toBase64();
