@@ -15,8 +15,13 @@ void InternalObject::_initialize()
     if(previous.isValid())
     {
         setValue(previous);
+        m_initialized = true;
     }
-    m_initialized = true;
+    if(m_initialValue.isValid())
+    {
+        setValue(m_initialValue);
+        m_initialized = true;
+    }
 }
 
 void InternalObject::_save()
@@ -26,4 +31,17 @@ void InternalObject::_save()
         QSettings settings;
         settings.setValue(name(), value());
     }
+}
+
+QVariant InternalObject::initialValue() const
+{
+    return m_initialValue;
+}
+
+void InternalObject::setInitialValue(const QVariant &newInitialValue)
+{
+    if (m_initialValue == newInitialValue)
+        return;
+    m_initialValue = newInitialValue;
+    emit initialValueChanged();
 }
