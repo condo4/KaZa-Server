@@ -6,6 +6,7 @@
 #include "kzobject.h"
 #include "scheduler.h"
 #include "kzalarm.h"
+#include "internalobject.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -26,6 +27,7 @@ KaZaManager::KaZaManager(QObject *parent)
 
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
     qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
+    qmlRegisterType<InternalObject>("org.kazoe.kaza", 1, 0, "InternalObject");
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
     qmlRegisterType<KzAlarm>("org.kazoe.kaza", 1, 0, "KzAlarm");
     qmlRegisterType<Scheduler>("org.kazoe.kaza", 1, 0, "Scheduler");

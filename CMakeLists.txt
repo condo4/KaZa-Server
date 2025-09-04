@@ -30,6 +30,7 @@ add_executable(KaZaServer
   src/kazaelement.h src/kazaelement.cpp
   src/scheduler.h src/scheduler.cpp
   src/kzalarm.h src/kzalarm.cpp
+  src/internalobject.h src/internalobject.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
   conf/KaZaServer.service
   conf/postinst
@@ -43,7 +44,7 @@ add_executable(kls
 target_include_directories(KaZaServer PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
 set_target_properties(KaZaLib PROPERTIES VERSION 1.0.0 SOVERSION 1)
-target_link_libraries(KaZaServer KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd)
+target_link_libraries(KaZaServer PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd)
 target_link_libraries(kls Qt6::Core Qt6::Network)
 
 
