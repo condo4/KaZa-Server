@@ -92,6 +92,11 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
         m_socket->write("OK\n");
         m_socket->write("\n");
     }
+
+    if(cmd.startsWith("notify"))
+    {
+        KaZaManager::sendNotify(cmd.mid(7));
+    }
 }
 
 void KaZaRemoteConnection::__clientconf() {
