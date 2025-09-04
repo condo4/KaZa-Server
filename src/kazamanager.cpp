@@ -27,6 +27,7 @@ KaZaManager::KaZaManager(QObject *parent)
 
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
     qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
+    qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "VariableObject");
     qmlRegisterType<InternalObject>("org.kazoe.kaza", 1, 0, "InternalObject");
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
     qmlRegisterType<KzAlarm>("org.kazoe.kaza", 1, 0, "KzAlarm");
