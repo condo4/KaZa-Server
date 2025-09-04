@@ -19,11 +19,13 @@ void InternalObject::_initialize()
         {
             setValue(previous);
             m_initialized = true;
+            return;
         }
         if(m_initialValue.isValid())
         {
             setValue(m_initialValue);
             m_initialized = true;
+            return;
         }
     }
 }
