@@ -17,7 +17,19 @@ void InternalObject::_initialize()
         QVariant previous = settings.value(name());
         if(previous.isValid())
         {
-            setValue(previous);
+            bool ok = false;
+            if(previous.metaType().id() == QMetaType::QString)
+            {
+                int t = previous.toString().toInt(&ok);
+                if(ok)
+                {
+                    setValue(t);
+                }
+            }
+            if(!ok)
+            {
+                setValue(previous);
+            }
             m_initialized = true;
             return;
         }
