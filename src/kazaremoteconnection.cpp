@@ -97,6 +97,12 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
     {
         KaZaManager::sendNotify(cmd.mid(7));
     }
+
+    if(cmd.startsWith("position?"))
+    {
+        KaZaManager::askPositions();
+    }
+
 }
 
 void KaZaRemoteConnection::__clientconf() {

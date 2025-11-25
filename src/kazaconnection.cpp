@@ -32,6 +32,11 @@ void KaZaConnection::sendNotify(QString text) {
     m_protocol.sendCommand("NOTIFY:" + text);
 }
 
+void KaZaConnection::askPositions()
+{
+    m_protocol.sendCommand("POSITIONS?");
+}
+
 void KaZaConnection::_processFrameSystem(const QString &command) {
     QStringList c = command.split(':');
     if(c[0] == "USER")

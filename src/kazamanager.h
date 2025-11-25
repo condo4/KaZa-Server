@@ -45,6 +45,7 @@ public:
     static QString appChecksum();
     static QString appFilename();
     static void sendNotify(QString text);
+    static void askPositions();
 
 public slots:
     bool runDbQuery(const QString &query) const;

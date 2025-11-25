@@ -205,6 +205,19 @@ void KaZaManager::sendNotify(QString text)
     }
 }
 
+void KaZaManager::askPositions()
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return;
+    }
+    for(KaZaConnection* conn: m_instance->m_clients)
+    {
+        conn->askPositions();
+    }
+}
+
 bool KaZaManager::runDbQuery(const QString &query) const
 {
     if(!m_databaseReady) return false;

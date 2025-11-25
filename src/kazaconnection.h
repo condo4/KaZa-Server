@@ -24,6 +24,7 @@ public:
     explicit KaZaConnection(QTcpSocket *socket, QObject *parent = nullptr);
     quint16 id();
     void sendNotify(QString text);
+    void askPositions();
 
 signals:
     void disconnectFromHost();
