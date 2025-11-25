@@ -44,6 +44,7 @@ public:
     static QVariant setting(QString id);
     static QString appChecksum();
     static QString appFilename();
+    static void sendNotify(QString text);
 
 public slots:
     bool runDbQuery(const QString &query) const;

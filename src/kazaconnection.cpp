@@ -28,6 +28,10 @@ quint16 KaZaConnection::id() {
     return m_protocol.peerPort();
 }
 
+void KaZaConnection::sendNotify(QString text) {
+    m_protocol.sendCommand("NOTIFY:" + text);
+}
+
 void KaZaConnection::_processFrameSystem(const QString &command) {
     QStringList c = command.split(':');
     if(c[0] == "USER")

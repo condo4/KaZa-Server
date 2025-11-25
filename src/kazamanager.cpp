@@ -192,6 +192,19 @@ QString KaZaManager::appFilename() {
     return m_instance->m_appFilename;
 }
 
+void KaZaManager::sendNotify(QString text)
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return;
+    }
+    for(KaZaConnection* conn: m_instance->m_clients)
+    {
+        conn->sendNotify(text);
+    }
+}
+
 bool KaZaManager::runDbQuery(const QString &query) const
 {
     if(!m_databaseReady) return false;
