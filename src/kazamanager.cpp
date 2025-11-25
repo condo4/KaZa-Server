@@ -205,7 +205,7 @@ void KaZaManager::sendNotify(QString text)
     }
 }
 
-void KaZaManager::askPositions()
+void KaZaManager::askPosition()
 {
     if(!m_instance)
     {
@@ -214,7 +214,7 @@ void KaZaManager::askPositions()
     }
     for(KaZaConnection* conn: m_instance->m_clients)
     {
-        conn->askPositions();
+        conn->askPosition();
     }
 }
 

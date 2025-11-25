@@ -32,9 +32,9 @@ void KaZaConnection::sendNotify(QString text) {
     m_protocol.sendCommand("NOTIFY:" + text);
 }
 
-void KaZaConnection::askPositions()
+void KaZaConnection::askPosition()
 {
-    m_protocol.sendCommand("POSITIONS?");
+    m_protocol.sendCommand("POSITION?");
 }
 
 void KaZaConnection::_processFrameSystem(const QString &command) {

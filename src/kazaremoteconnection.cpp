@@ -100,7 +100,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 
     if(cmd.startsWith("position?"))
     {
-        KaZaManager::askPositions();
+        KaZaManager::askPosition();
     }
 
 }
