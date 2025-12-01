@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(KaZaServer LANGUAGES CXX VERSION 1.0.1)
+project(kazad LANGUAGES CXX VERSION 1.2.0)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -139,14 +139,14 @@ if(BUILD_DEBIAN_PACKAGE)
     file(READ /etc/debian_version DEBIAN_VERSION)
     string(REGEX MATCH "^[0-9]+" DEBIAN_MAJOR "${DEBIAN_VERSION}")
     set(CPACK_GENERATOR "DEB")
-    set(CPACK_PACKAGE_VERSION "1.0.1")
+    set(CPACK_PACKAGE_VERSION "1.2.0")
     set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-    set(CPACK_DEBIAN_PACKAGE_NAME "kaza-server")
+    set(CPACK_DEBIAN_PACKAGE_NAME "kazad")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Fabien Proriol <fabien.proriol@kazoe.org>")
     set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_PROJECT_VERSION_PATCH}-deb${DEBIAN_MAJOR}")
 
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "KaZa server")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6, qml6-module-qtqml")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6, qml6-module-qtqml, openssl")
     set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
     set(CPACK_DEBIAN_BIN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/conf/postinst;${CMAKE_CURRENT_SOURCE_DIR}/conf/postrm")
 
