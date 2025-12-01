@@ -46,12 +46,14 @@ void KaZaConnection::askPosition()
 
 void KaZaConnection::sendObjectsList()
 {
-    // Build QMap from m_obj
+    // Build QMap from ALL objects in KaZaManager (not just subscribed ones)
     QMap<QString, QPair<QVariant, QString>> objects;
-    for (auto it = m_obj.begin(); it != m_obj.end(); ++it) {
-        KaZaObject *obj = it.value();
+    QStringList objectKeys = KaZaManager::getObjectKeys();
+
+    for (const QString &key : objectKeys) {
+        KaZaObject *obj = KaZaManager::getObject(key);
         if (obj) {
-            objects[it.key()] = QPair<QVariant, QString>(obj->value(), obj->unit());
+            objects[key] = QPair<QVariant, QString>(obj->value(), obj->unit());
         }
     }
 
