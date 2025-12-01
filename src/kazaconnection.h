@@ -28,7 +28,7 @@ public:
     void askPosition();
     void sendObjectsList();
     void enableDMZ();
-    void subscribeToObject(KaZaObject *obj, quint16 index);
+    void subscribeToObject(KaZaObject *obj, quint16 index, bool sendDesc = true);
     bool isDmzEnabled() const { return m_dmzEnabled; }
 
 signals:

@@ -77,14 +77,14 @@ void KaZaConnection::enableDMZ()
     for (const QString &name : objectKeys) {
         KaZaObject *obj = KaZaManager::getObject(name);
         if (obj && !m_obj.contains(name)) {
-            subscribeToObject(obj, index++);
+            subscribeToObject(obj, index++, false);
         }
     }
 
     qInfo().noquote().nospace() << "SSL " << id() << ": DMZ enabled - subscribed to " << m_obj.size() << " objects";
 }
 
-void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index)
+void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index, bool sendDesc)
 {
     if (!obj) return;
 
@@ -97,9 +97,15 @@ void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index)
     m_ids[name] = index;
     QObject::connect(obj, &KaZaObject::valueChanged, this, &KaZaConnection::_objectChanged);
 
-    // Send initial value
-    m_protocol.sendCommand("OBJDESC:" + name + ":" + obj->unit());
-    if (obj->value().isValid()) {
+    // Only send OBJDESC if client hasn't already received the objects list
+    // (OBJLIST already contains name, value, and unit for all objects)
+    if (sendDesc) {
+        m_protocol.sendCommand("OBJDESC:" + name + ":" + obj->unit());
+    }
+
+    // Send initial value only if objects list wasn't sent
+    // (OBJLIST already contains current values)
+    if (sendDesc && obj->value().isValid()) {
         m_protocol.sendObject(index, obj->value(), false);
     }
 }
