@@ -42,6 +42,12 @@ class SchedulerFilterRange: public SchedulerFilter {
 public:
     SchedulerFilterRange(QString param): SchedulerFilter(param) {
         QStringList tab = param.split("-");
+        if (tab.size() < 2) {
+            qWarning() << "Invalid range pattern:" << param << "(expected format: min-max)";
+            m_min_value = 0;
+            m_max_value = 0;
+            return;
+        }
         m_min_value = tab[0].toInt();
         m_max_value = tab[1].toInt();
     }
@@ -75,7 +81,16 @@ class SchedulerFilterModulo: public SchedulerFilter {
 public:
     SchedulerFilterModulo(QString param): SchedulerFilter(param) {
         QStringList tab = param.split("/");
+        if (tab.size() < 2) {
+            qWarning() << "Invalid modulo pattern:" << param << "(expected format: */divisor)";
+            m_modulo = 1;  // Avoid division by zero
+            return;
+        }
         m_modulo = tab[1].toInt();
+        if (m_modulo == 0) {
+            qWarning() << "Invalid modulo pattern:" << param << "(divisor cannot be zero)";
+            m_modulo = 1;  // Avoid division by zero
+        }
     }
     virtual ~SchedulerFilterModulo() = default;
     bool match(int value) override {
@@ -217,7 +232,7 @@ void Scheduler::setWday(const QString &newWday)
     if (!d->m_filter_wday.isNull() && d->m_filter_wday->param() == newWday)
         return;
     d->m_filter_wday = createFilter(newWday);
-    emit dayChanged();
+    emit wdayChanged();
 }
 
 QString Scheduler::hour() const

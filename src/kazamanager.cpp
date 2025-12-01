@@ -7,10 +7,12 @@
 #include "scheduler.h"
 #include "kzalarm.h"
 #include "internalobject.h"
+#include "kazacertificategenerator.h"
 
 #include <QUrl>
 #include <QQmlContext>
 #include <QFile>
+#include <QDir>
 #include <QSslKey>
 #include <QSqlDatabase>
 #include <QSqlError>
@@ -18,12 +20,60 @@
 
 KaZaManager *KaZaManager::m_instance = {nullptr};
 
+bool KaZaManager::ensureCertificatesExist()
+{
+    // Check if /var/lib/kazad exists
+    QDir kazadDir("/var/lib/kazad");
+    if (!kazadDir.exists()) {
+        qInfo() << "Creating /var/lib/kazad directory...";
+        if (!QDir().mkpath("/var/lib/kazad")) {
+            qCritical() << "Failed to create /var/lib/kazad directory";
+            return false;
+        }
+    }
+
+    // Hardcoded certificate paths
+    const QString caFile = "/var/lib/kazad/ca.cert.pem";
+    const QString certFile = "/var/lib/kazad/server.cert.pem";
+    const QString keyFile = "/var/lib/kazad/server.key";
+
+    // Check if all required certificate files exist
+    if (QFile::exists(caFile) && QFile::exists(certFile) && QFile::exists(keyFile)) {
+        qInfo() << "SSL certificates already exist";
+        return true;
+    }
+
+    // Certificates don't exist, generate them
+    qInfo() << "SSL certificates not found, generating new certificates...";
+    QString hostname = m_settings.value("ssl/hostname").toString();
+    QString keyPassword = m_settings.value("ssl/keypassword").toString();
+
+    if (hostname.isEmpty()) {
+        qCritical() << "ssl/hostname not configured in /etc/kazad.conf";
+        return false;
+    }
+
+    if (keyPassword.isEmpty()) {
+        qCritical() << "ssl/keypassword not configured in /etc/kazad.conf";
+        return false;
+    }
+
+    return KaZaCertificateGenerator::generateCertificates(hostname, keyPassword, "/var/lib/kazad");
+}
+
 KaZaManager::KaZaManager(QObject *parent)
     : QObject{parent}
-    , m_settings("/etc/KaZaServer.conf", QSettings::Format::IniFormat)
+    , m_settings("/etc/kazad.conf", QSettings::Format::IniFormat)
 {
-    QString qmlconf = m_settings.value("Server/qml").toString();
     m_instance = this;
+
+    // Ensure SSL certificates exist, generate if needed
+    if (!ensureCertificatesExist()) {
+        qCritical() << "Failed to ensure SSL certificates exist - server cannot start";
+        return;
+    }
+
+    QString qmlconf = m_settings.value("qml/server").toString();
 
     qmlRegisterType<KaZaObject>("org.kazoe.kaza", 1, 0, "KaZaObject");
     qmlRegisterType<KaZaElement>("org.kazoe.kaza", 1, 0, "KaZaElement");
@@ -44,20 +94,27 @@ KaZaManager::KaZaManager(QObject *parent)
         qInfo() << "No QML module loaded";
     }
 
-    QString cafile = m_settings.value("ssl/ca_file").toString();
-    QString certfile = m_settings.value("ssl/cert_file").toString();
+    // Hardcoded certificate paths
+    QString cafile = "/var/lib/kazad/ca.cert.pem";
+    QString certfile = "/var/lib/kazad/server.cert.pem";
+    QString keyfile = "/var/lib/kazad/server.key";
+
     QSslConfiguration configuration;
     configuration.setCaCertificates(QSslCertificate::fromPath(cafile));
     configuration.setPeerVerifyMode(QSslSocket::VerifyPeer);
     QList<QSslCertificate> certfilelist = QSslCertificate::fromPath(certfile);
+    if (certfilelist.isEmpty()) {
+        qWarning() << "Failed to load server certificate from:" << certfile;
+        return;
+    }
     configuration.setLocalCertificate(certfilelist.first());
 
-    QFile key(m_settings.value("ssl/private_key_file").toString());
+    QFile key(keyfile);
     if(!key.open(QFile::ReadOnly)) {
         qWarning() << "Couldn't open private key:" << key.errorString();
         return;
     }
-    QSslKey sslkey(&key, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, m_settings.value("ssl/private_key_password").toByteArray());
+    QSslKey sslkey(&key, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, m_settings.value("ssl/keypassword").toByteArray());
     configuration.setPrivateKey(sslkey);
     m_server.setSslConfiguration(configuration);
 
@@ -69,19 +126,33 @@ KaZaManager::KaZaManager(QObject *parent)
         qDebug() << "SSL peerVerifyError " << error;
     });
 
-    QObject::connect(&m_server, &QSslServer::errorOccurred, [this](QSslSocket *socket, QAbstractSocket::SocketError socketError){
-        qWarning() << "SSL ERROR" << socketError;
-    });
-
     m_server.listen(QHostAddress::Any, m_settings.value("ssl/port").toInt());
     qInfo() << "Start SSL server, listen on"  << m_server.serverPort();
 
-    QObject::connect(&m_remotecontrol, &QTcpServer::pendingConnectionAvailable, this, &KaZaManager::_pendingRemoteConnectionAvailable);
-    m_remotecontrol.listen(QHostAddress::Any, m_settings.value("scpi/port").toInt());
-    qInfo() << "Start Remote Control, listen on"  << m_remotecontrol.serverPort();
+    // Control/Remote connection server (for certificate distribution)
+    // Uses SSL but without client certificate requirement (VerifyNone)
+    bool controlEnable = m_settings.value("control/enable", true).toBool();
+    if (controlEnable) {
+        // Configure SSL for control port (same certs as main server)
+        QSslConfiguration controlConfig;
+        controlConfig.setLocalCertificate(configuration.localCertificate());
+        controlConfig.setPrivateKey(configuration.privateKey());
+        controlConfig.setPeerVerifyMode(QSslSocket::VerifyNone);  // No client cert required
+        m_remotecontrol.setSslConfiguration(controlConfig);
+
+        QObject::connect(&m_remotecontrol, &QSslServer::pendingConnectionAvailable, this, &KaZaManager::_pendingRemoteConnectionAvailable);
+        QObject::connect(&m_remotecontrol, &QSslServer::errorOccurred, [this](QSslSocket *socket, QAbstractSocket::SocketError socketError){
+            qWarning() << "Control SSL ERROR" << socketError;
+        });
+
+        m_remotecontrol.listen(QHostAddress::Any, m_settings.value("control/port").toInt());
+        qInfo() << "Start SSL Control server, listen on"  << m_remotecontrol.serverPort();
+    } else {
+        qInfo() << "Control server disabled (control/enable=false)";
+    }
 
     /* Calculate current App Checksum */
-    m_appFilename = m_settings.value("Client/app").toString();
+    m_appFilename = m_settings.value("qml/client").toString();
 
     QString dbdriver = m_settings.value("database/driver").toString();
     if(!dbdriver.isEmpty())
@@ -99,6 +170,10 @@ KaZaManager::KaZaManager(QObject *parent)
             m_databaseReady = true;
         }
     }
+
+    // Mark initialization as successful
+    m_initialized = true;
+    qInfo() << "KaZa Server initialized successfully";
 }
 
 KaZaManager *KaZaManager::getInstance() {
@@ -109,9 +184,18 @@ void KaZaManager::registerObject(KaZaObject* obj) {
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
+        return;
     }
     m_instance->m_objects.append(obj);
     emit m_instance->objectAdded();
+
+    // Subscribe DMZ connections to new object
+    quint16 nextIndex = m_instance->m_objects.size();
+    for (KaZaConnection* conn : m_instance->m_clients) {
+        if (conn && conn->isDmzEnabled()) {
+            conn->subscribeToObject(obj, nextIndex);
+        }
+    }
 }
 
 void KaZaManager::registerAlarm(KzAlarm *obj)
@@ -119,6 +203,7 @@ void KaZaManager::registerAlarm(KzAlarm *obj)
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
+        return;
     }
     m_instance->m_alarms.append(obj);
     emit m_instance->alarmAdded();
@@ -126,9 +211,11 @@ void KaZaManager::registerAlarm(KzAlarm *obj)
 
 const QList<KzAlarm *> &KaZaManager::alarms()
 {
+    static QList<KzAlarm *> emptyList;
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
+        return emptyList;
     }
     return m_instance->m_alarms;
 }
@@ -137,6 +224,7 @@ KaZaObject* KaZaManager::getObject(const QString &name) {
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
+        return nullptr;
     }
     for(KaZaObject* obj: std::as_const(m_instance->m_objects))
     {
@@ -151,6 +239,11 @@ KaZaObject* KaZaManager::getObject(const QString &name) {
 QStringList KaZaManager::getObjectKeys()
 {
     QStringList res;
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return res;
+    }
     for(KaZaObject* obj: std::as_const(m_instance->m_objects))
     {
         res.append(obj->name());
@@ -162,6 +255,7 @@ QVariant KaZaManager::setting(QString id) {
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
+        return QVariant();
     }
     return m_instance->m_settings.value(id);
 }
@@ -215,6 +309,19 @@ void KaZaManager::askPosition()
     for(KaZaConnection* conn: m_instance->m_clients)
     {
         conn->askPosition();
+    }
+}
+
+void KaZaManager::sendObjectsList()
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return;
+    }
+    for(KaZaConnection* conn: m_instance->m_clients)
+    {
+        conn->sendObjectsList();
     }
 }
 
@@ -281,7 +388,7 @@ void KaZaManager::_remoteDisconnection() {
         qWarning() << "Error on disconnect";
         return;
     }
-    qDebug().noquote().nospace() << "Remote " << connection->id() << ": Disconnected";
+    qDebug().noquote().nospace() << "Control SSL " << connection->id() << ": Disconnected";
     m_remoteclients.removeAll(connection);
     connection->deleteLater();
 }

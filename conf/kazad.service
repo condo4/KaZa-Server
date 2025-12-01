@@ -3,9 +3,9 @@ Description=KaZa Daemon
 After=network.target knxd.service
 
 [Service]
-ExecStart=/usr/bin/KaZaServer
+ExecStart=/usr/bin/kazad
 Type=notify
-User=kazaserver
+User=kazad
 Restart=on-failure
 RestartSec=10
 

@@ -2,13 +2,47 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-    # Créer l'utilisateur si nécessaire
-    if ! getent passwd kazaserver > /dev/null; then
-        adduser --system --group --no-create-home kazaserver
+    # Create user if needed
+    if ! getent passwd kazad > /dev/null; then
+        adduser --system --group --no-create-home kazad
     fi
 
-    # Activer et démarrer le service
+    # Create /var/lib/kazad directory
+    mkdir -p /var/lib/kazad
+    chown kazad:kazad /var/lib/kazad
+    chmod 750 /var/lib/kazad
+
+    # Install default config if it doesn't exist
+    if [ ! -f /etc/kazad.conf ]; then
+        echo "Installing default configuration to /etc/kazad.conf"
+        cp /usr/share/kazad/kazad.conf /etc/kazad.conf
+        chmod 600 /etc/kazad.conf
+        chown root:root /etc/kazad.conf
+        echo ""
+        echo "===================================================================="
+        echo "KaZa Daemon installed successfully!"
+        echo ""
+        echo "IMPORTANT: Before starting the service, please edit the configuration:"
+        echo "  sudo nano /etc/kazad.conf"
+        echo ""
+        echo "Configure at minimum:"
+        echo "  - ssl/hostname (your server hostname)"
+        echo "  - ssl/keypassword (server private key password)"
+        echo "  - control/password (admin password for client certificate generation)"
+        echo ""
+        echo "Then enable and start the service:"
+        echo "  sudo systemctl enable kazad.service"
+        echo "  sudo systemctl start kazad.service"
+        echo ""
+        echo "Check status with:"
+        echo "  sudo systemctl status kazad.service"
+        echo "  sudo journalctl -u kazad.service -f"
+        echo "===================================================================="
+        echo ""
+    else
+        echo "Configuration file /etc/kazad.conf already exists, keeping existing configuration"
+    fi
+
+    # Reload systemd to recognize the new service
     systemctl daemon-reload
-    systemctl enable KaZaServer.service
-    systemctl start KaZaServer.service
 fi

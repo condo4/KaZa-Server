@@ -25,16 +25,18 @@ class KaZaManager : public QObject
     QSslServer m_server;
     QList<KaZaConnection*> m_clients;
     QList<KzAlarm*> m_alarms;
-    QTcpServer m_remotecontrol;
+    QSslServer m_remotecontrol;
     QList<KaZaRemoteConnection*> m_remoteclients;
     QString m_appFilename;
     bool m_databaseReady {false};
+    bool m_initialized {false};
 
     static KaZaManager *m_instance;
 
 public:
     explicit KaZaManager(QObject *parent = nullptr);
 
+    bool isInitialized() const { return m_initialized; }
     static KaZaManager *getInstance();
     static void registerObject(KaZaObject* obj);
     static void registerAlarm(KzAlarm* obj);
@@ -46,10 +48,13 @@ public:
     static QString appFilename();
     static void sendNotify(QString text);
     static void askPosition();
+    static void sendObjectsList();
 
 public slots:
     bool runDbQuery(const QString &query) const;
 
+private:
+    bool ensureCertificatesExist();
 
 private slots:
     void _pendingConnectionAvailable();

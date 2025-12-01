@@ -2,7 +2,23 @@
 set -e
 
 if [ "$1" = "remove" ]; then
-    systemctl stop KaZaServer.service
-    systemctl disable KaZaServer.service
+    # Reload systemd to clean up service definition
     systemctl daemon-reload
+
+    echo ""
+    echo "KaZa Daemon package removed."
+    echo ""
+    echo "Note: The service has NOT been automatically stopped or disabled."
+    echo "If the service is running, stop it with:"
+    echo "  sudo systemctl stop kazad.service"
+    echo "  sudo systemctl disable kazad.service"
+    echo ""
+    echo "Configuration file /etc/kazad.conf has been preserved."
+    echo "Remove manually if needed:"
+    echo "  sudo rm /etc/kazad.conf"
+    echo ""
+    echo "Certificate directory /var/lib/kazad has been preserved."
+    echo "Remove manually if needed:"
+    echo "  sudo rm -rf /var/lib/kazad"
+    echo ""
 fi

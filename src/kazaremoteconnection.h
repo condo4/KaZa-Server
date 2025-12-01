@@ -22,7 +22,7 @@ private slots:
     void _processPacket(const QByteArray &packet);
 
 private:
-    void __clientconf();
+    void __clientconf(const QString &adminPassword, const QString &username, const QString &userPassword);
 };
 
 #endif // KAZAREMOTECONNECTION_H

@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(KaZaServer LANGUAGES CXX VERSION 1.0.1)
 
-set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
@@ -10,6 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Qml Network Sql)
+find_package(OpenSSL REQUIRED)
 
 include_directories(src)
 
@@ -21,7 +21,7 @@ if(NOT KAZA_PROTOCOL_DIRECTORY)
     set(KAZA_PROTOCOL_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protocol")
 endif()
 
-add_executable(KaZaServer
+add_executable(kazad
   src/main.cpp
   src/kazamanager.h src/kazamanager.cpp
   src/kazaconnection.h src/kazaconnection.cpp
@@ -31,8 +31,9 @@ add_executable(KaZaServer
   src/scheduler.h src/scheduler.cpp
   src/kzalarm.h src/kzalarm.cpp
   src/internalobject.h src/internalobject.cpp
+  src/kazacertificategenerator.h src/kazacertificategenerator.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
-  conf/KaZaServer.service
+  conf/kazad.service
   conf/postinst
   conf/postrm
 )
@@ -41,17 +42,17 @@ add_executable(kls
     src/cmd/kls.cpp
 )
 
-target_include_directories(KaZaServer PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
+target_include_directories(kazad PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
 set_target_properties(KaZaLib PROPERTIES VERSION 1.0.0 SOVERSION 1)
-target_link_libraries(KaZaServer PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd)
+target_link_libraries(kazad PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(kls Qt6::Core Qt6::Network)
 
 
 include(GNUInstallDirs)
 
 
-install(TARGETS KaZaServer
+install(TARGETS kazad
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME
         COMPONENT bin
@@ -108,8 +109,14 @@ install(
 
 
 install(
-    FILES conf/KaZaServer.service
+    FILES conf/kazad.service
     DESTINATION /lib/systemd/system
+    COMPONENT bin
+)
+
+install(
+    FILES conf/kazad.conf
+    DESTINATION /usr/share/kazad
     COMPONENT bin
 )
 

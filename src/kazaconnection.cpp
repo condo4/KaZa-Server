@@ -4,6 +4,7 @@
 #include "kzalarm.h"
 #include <QTcpSocket>
 #include <QFile>
+#include <QTimer>
 #include <QBuffer>
 #include <QSqlQuery>
 #include <QSqlRecord>
@@ -16,6 +17,12 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
 #ifdef DEBUG_CONNECTION
     qDebug().noquote().nospace() << "SSL " << id() << ": Connected";
 #endif
+    // Setup version negotiation signals (server waits for client version)
+    QObject::connect(&m_protocol, &KaZaProtocol::versionReceived, this, &KaZaConnection::_processVersionReceived);
+    QObject::connect(&m_protocol, &KaZaProtocol::versionNegotiated, this, &KaZaConnection::_processVersionNegotiated);
+    QObject::connect(&m_protocol, &KaZaProtocol::versionIncompatible, this, &KaZaConnection::_processVersionIncompatible);
+
+    // Setup regular protocol signals
     QObject::connect(&m_protocol, &KaZaProtocol::disconnectFromHost, this, &KaZaConnection::disconnectFromHost);
     QObject::connect(&m_protocol, &KaZaProtocol::frameCommand, this, &KaZaConnection::_processFrameSystem);
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
@@ -37,7 +44,116 @@ void KaZaConnection::askPosition()
     m_protocol.sendCommand("POSITION?");
 }
 
+void KaZaConnection::sendObjectsList()
+{
+    // Build QMap from m_obj
+    QMap<QString, QPair<QVariant, QString>> objects;
+    for (auto it = m_obj.begin(); it != m_obj.end(); ++it) {
+        KaZaObject *obj = it.value();
+        if (obj) {
+            objects[it.key()] = QPair<QVariant, QString>(obj->value(), obj->unit());
+        }
+    }
+
+    // Send compressed objects list via protocol
+    m_protocol.sendFrameObjectsList(objects);
+}
+
+void KaZaConnection::enableDMZ()
+{
+    if (m_dmzEnabled) {
+        qInfo().noquote().nospace() << "SSL " << id() << ": DMZ already enabled";
+        return;
+    }
+
+    qInfo().noquote().nospace() << "SSL " << id() << ": Enabling DMZ - subscribing to all objects";
+    m_dmzEnabled = true;
+
+    // Subscribe to all existing objects
+    QStringList objectKeys = KaZaManager::getObjectKeys();
+    quint16 index = 0;
+    for (const QString &name : objectKeys) {
+        KaZaObject *obj = KaZaManager::getObject(name);
+        if (obj && !m_obj.contains(name)) {
+            subscribeToObject(obj, index++);
+        }
+    }
+
+    qInfo().noquote().nospace() << "SSL " << id() << ": DMZ enabled - subscribed to " << m_obj.size() << " objects";
+}
+
+void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index)
+{
+    if (!obj) return;
+
+    QString name = obj->name();
+    if (m_obj.contains(name)) {
+        return; // Already subscribed
+    }
+
+    m_obj[name] = obj;
+    m_ids[name] = index;
+    QObject::connect(obj, &KaZaObject::valueChanged, this, &KaZaConnection::_objectChanged);
+
+    // Send initial value
+    m_protocol.sendCommand("OBJDESC:" + name + ":" + obj->unit());
+    if (obj->value().isValid()) {
+        m_protocol.sendObject(index, obj->value(), false);
+    }
+}
+
+void KaZaConnection::_processVersionReceived(quint8 major, quint8 minor)
+{
+    qInfo().noquote().nospace() << "SSL " << id() << ": Client protocol version " << major << "." << minor
+                                 << " (Server: " << KaZaProtocol::PROTOCOL_VERSION_MAJOR << "." << KaZaProtocol::PROTOCOL_VERSION_MINOR << ")";
+
+    // Check compatibility: major version must match
+    bool compatible = (major == KaZaProtocol::PROTOCOL_VERSION_MAJOR);
+
+    if (compatible) {
+        qInfo().noquote().nospace() << "SSL " << id() << ": Protocol versions compatible";
+    } else {
+        qWarning().noquote().nospace() << "SSL " << id() << ": Protocol version INCOMPATIBLE";
+    }
+
+    // Send version response
+    m_protocol.sendVersionResponse(compatible);
+
+    if (!compatible) {
+        // Disconnect after short delay to allow response to be sent
+        QTimer::singleShot(1000, this, [this]() {
+            emit disconnectFromHost();
+        });
+    }
+}
+
+void KaZaConnection::_processVersionNegotiated()
+{
+    qInfo().noquote().nospace() << "SSL " << id() << ": Version negotiation successful - initializing connection";
+
+    // Send all registered objects to client
+    for(const QString &name : m_obj.keys())
+    {
+        m_protocol.sendObject(m_ids[name], m_obj[name]->value(), false);
+    }
+}
+
+void KaZaConnection::_processVersionIncompatible(QString reason)
+{
+    qWarning().noquote().nospace() << "SSL " << id() << ": Version incompatible - " << reason;
+    QTimer::singleShot(1000, this, [this]() {
+        emit disconnectFromHost();
+    });
+}
+
 void KaZaConnection::_processFrameSystem(const QString &command) {
+    // Version negotiation is mandatory - reject if not negotiated
+    if (!m_protocol.isVersionNegotiated()) {
+        qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+
     QStringList c = command.split(':');
     if(c[0] == "USER")
     {
@@ -55,6 +171,24 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         qDebug().noquote().nospace() << "SSL " << id() << ": System Asking application";
 #endif
         m_protocol.sendFile("APP", KaZaManager::appFilename());
+        return;
+    }
+
+    if(c[0] == "OBJLIST?")
+    {
+        // Client requests compressed objects list
+#ifdef DEBUG_CONNECTION
+        qDebug().noquote().nospace() << "SSL " << id() << ": Client requesting objects list";
+#endif
+        sendObjectsList();
+        return;
+    }
+
+    if(c[0] == "DMZ")
+    {
+        // Enable DMZ mode - subscribe to all objects
+        enableDMZ();
+        m_protocol.sendCommand("DMZ:OK");
         return;
     }
 
@@ -109,6 +243,17 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         return;
     }
 
+    if(c[0] == "LISTOBJECTS")
+    {
+        // Get list of all available objects
+        QStringList objectNames = KaZaManager::getObjectKeys();
+        QString objectList = objectNames.join(',');
+
+        qInfo().noquote().nospace() << "SSL " << id() << ": Sending list of " << objectNames.size() << " objects";
+        m_protocol.sendCommand("LISTOBJECTS:" + objectList);
+        return;
+    }
+
     qWarning().noquote().nospace() << "SSL " << id() << ": Unknown System Command " << command;
 }
 
@@ -120,24 +265,38 @@ void KaZaConnection::_objectChanged() {
     m_protocol.sendObject(m_ids[obj->name()], obj->value(), false);
 }
 
-void KaZaConnection::_processFrameObject(quint16 id, QVariant value, bool confirm) {
-    KaZaObject *obj = m_obj.value(m_ids.key(id), nullptr);
+void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool confirm) {
+    // Version negotiation is mandatory - reject if not negotiated
+    if (!m_protocol.isVersionNegotiated()) {
+        qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+
+    KaZaObject *obj = m_obj.value(m_ids.key(objectId), nullptr);
     if(obj == nullptr)
     {
-        qWarning() << "Can't find object with id" << id;
+        qWarning() << "Can't find object with id" << objectId;
         return;
     }
     obj->changeValue(value, confirm);
 }
 
 
-void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
+void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
+    // Version negotiation is mandatory - reject if not negotiated
+    if (!m_protocol.isVersionNegotiated()) {
+        qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+
     QSqlQuery q;
     if(q.exec(query))
     {
         QList<QList<QVariant>> result;
         bool first = true;
-        QStringList colums;
+        QStringList columns;
         while(q.next())
         {
             QList<QVariant> data;
@@ -145,7 +304,7 @@ void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
             {
                 if(first)
                 {
-                    colums.append(q.record().fieldName(i));
+                    columns.append(q.record().fieldName(i));
                 }
                 data.append(q.value(i));
             }
@@ -155,7 +314,7 @@ void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
             }
             result.append(data);
         }
-        m_protocol.sendDbQueryResult(id, colums, result);
+        m_protocol.sendDbQueryResult(queryId, columns, result);
     }
     else
     {
@@ -163,29 +322,29 @@ void KaZaConnection::_processFrameDbQuery(uint32_t id, QString query) {
     }
 }
 
-void KaZaConnection::_processFrameSocketConnect(uint16_t id, const QString hostname, uint16_t port)
+void KaZaConnection::_processFrameSocketConnect(uint16_t socketId, const QString hostname, uint16_t port)
 {
-    if(m_sockets.contains(id))
+    if(m_sockets.contains(socketId))
     {
-        qWarning() << "Socket " << id << "allready used";
+        qWarning() << "Socket " << socketId << "allready used";
         return;
     }
-    m_sockets[id] = new QTcpSocket();
-    QObject::connect(m_sockets[id], &QTcpSocket::readyRead, this, &KaZaConnection::_sockReadyRead);
-    QObject::connect(m_sockets[id], &QTcpSocket::stateChanged, this, &KaZaConnection::_sockStateChange);
+    m_sockets[socketId] = new QTcpSocket();
+    QObject::connect(m_sockets[socketId], &QTcpSocket::readyRead, this, &KaZaConnection::_sockReadyRead);
+    QObject::connect(m_sockets[socketId], &QTcpSocket::stateChanged, this, &KaZaConnection::_sockStateChange);
 
-    m_sockets[id]->connectToHost(hostname, port);
+    m_sockets[socketId]->connectToHost(hostname, port);
 }
 
-void KaZaConnection::_processFrameSocketData(uint16_t id, QByteArray data)
+void KaZaConnection::_processFrameSocketData(uint16_t socketId, QByteArray data)
 {
-    if(m_sockets.contains(id))
+    if(m_sockets.contains(socketId))
     {
-        m_sockets[id]->write(data);
+        m_sockets[socketId]->write(data);
     }
     else
     {
-        qWarning() << "Can't find socket " << id;
+        qWarning() << "Can't find socket " << socketId;
     }
 }
 
