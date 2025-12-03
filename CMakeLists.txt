@@ -46,7 +46,7 @@ add_executable(kls
 target_include_directories(kazad PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_include_directories(kls PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
-set_target_properties(KaZaLib PROPERTIES VERSION 1.0.0 SOVERSION 1)
+set_target_properties(KaZaLib PROPERTIES VERSION 2.0.0 SOVERSION 2)
 target_link_libraries(kazad PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(kls Qt6::Core Qt6::Network OpenSSL::SSL OpenSSL::Crypto)
 
