@@ -1,10 +1,19 @@
 #include <QCoreApplication>
-#include <QTcpSocket>
+#include <QSslSocket>
 #include <QSettings>
 #include <QList>
 #include <QString>
 #include <QRegularExpression>
 #include <QTextStream>
+#include <QSslConfiguration>
+#include <QSslKey>
+#include <QSslCertificate>
+#include <QFile>
+#include <QTimer>
+#include <QDataStream>
+#include <QDir>
+#include <QElapsedTimer>
+#include "../protocol/kazaprotocol.h"
 
 struct FilterSegment {
     QString text;
@@ -96,45 +105,88 @@ bool matchesFilter(const QString &name, const QString &filter)
     return true;
 }
 
-int main(int argc, char *argv[])
+void printObjects(const QMap<QString, QPair<QVariant, QString>> &objects, const QString &filterPattern, const QString &specificObject)
 {
-    QCoreApplication a(argc, argv);
-    QTcpSocket socket;
+    QTextStream out(stdout);
+
+    if (!specificObject.isEmpty()) {
+        // Print specific object
+        if (objects.contains(specificObject)) {
+            const auto &data = objects[specificObject];
+            QString line = specificObject.leftJustified(80, ' ');
+            line.append(data.first.toString());
+            line.append(" ");
+            line.append(data.second);
+            out << line << Qt::endl;
+        }
+    } else if (!filterPattern.isEmpty()) {
+        // Print filtered objects
+        for (auto it = objects.constBegin(); it != objects.constEnd(); ++it) {
+            const QString &name = it.key();
+            if (matchesFilter(name, filterPattern)) {
+                const auto &data = it.value();
+                QString line = name.leftJustified(80, ' ');
+                line.append(data.first.toString());
+                line.append(" ");
+                line.append(data.second);
+                out << line << Qt::endl;
+            }
+        }
+    } else {
+        // Print all objects
+        for (auto it = objects.constBegin(); it != objects.constEnd(); ++it) {
+            const QString &name = it.key();
+            const auto &data = it.value();
+            QString line = name.leftJustified(80, ' ');
+            line.append(data.first.toString());
+            line.append(" ");
+            line.append(data.second);
+            out << line << Qt::endl;
+        }
+    }
+}
+
+// Control port mode (simple SSL, text-based protocol)
+int controlPortMode(const QString &filterPattern, const QString &specificObject)
+{
+    QSslSocket socket;
     QSettings settings("/etc/kazad.conf", QSettings::IniFormat);
 
     QString host = settings.value("control/server").toString();
     if(host.isNull()) host = "127.0.0.1";
 
     uint16_t port = settings.value("control/port").toInt();
-    socket.connectToHost(host, port);
+
+    // Configure SSL to ignore certificate errors for self-signed certificates
+    QSslConfiguration sslConfig = socket.sslConfiguration();
+    sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
+    socket.setSslConfiguration(sslConfig);
+
+    // Ignore SSL errors to allow self-signed certificates
+    QObject::connect(&socket, QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors),
+                     [&socket](const QList<QSslError> &errors) {
+                         socket.ignoreSslErrors();
+                     });
+
+    socket.connectToHostEncrypted(host, port);
 
     if (!socket.waitForConnected(5000)) {
-        qDebug() << "Conenction error:" << socket.errorString();
+        qDebug() << "Connection error:" << socket.errorString();
         return -1;
     }
 
-    // Determine if we need to filter client-side
-    bool useFilter = false;
-    QString filterPattern;
-
-    if(argc > 1)
-    {
-        QString arg = QString::fromUtf8(argv[1]);
-        if (arg.startsWith("/")) {
-            // Filter mode: fetch all objects and filter client-side
-            useFilter = true;
-            filterPattern = arg.mid(1);  // Remove the leading "/"
-            socket.write("obj?\n");
-        } else {
-            // Specific object mode: query server for this object
-            socket.write("obj? ");
-            socket.write(arg.toUtf8());
-            socket.write("\n");
-        }
+    // Wait for SSL handshake to complete
+    if (!socket.waitForEncrypted(5000)) {
+        qDebug() << "SSL handshake error:" << socket.errorString();
+        return -1;
     }
-    else
-    {
-        // No argument: list all objects
+
+    // Send command based on mode
+    if (!specificObject.isEmpty()) {
+        socket.write("obj? ");
+        socket.write(specificObject.toUtf8());
+        socket.write("\n");
+    } else {
         socket.write("obj?\n");
     }
 
@@ -160,19 +212,18 @@ int main(int argc, char *argv[])
                 // End of response
                 socket.close();
 
-                // If filtering, apply filter now
-                if (useFilter) {
+                // Print results
+                QTextStream out(stdout);
+                if (!filterPattern.isEmpty()) {
                     for (const QString &l : lines) {
-                        // Extract object ID (first word before whitespace)
                         QString objectId = l.split(QRegularExpression("\\s+")).first();
                         if (matchesFilter(objectId, filterPattern)) {
-                            QTextStream(stdout) << l << Qt::endl;
+                            out << l << Qt::endl;
                         }
                     }
                 } else {
-                    // No filtering, print all lines
                     for (const QString &l : lines) {
-                        QTextStream(stdout) << l << Qt::endl;
+                        out << l << Qt::endl;
                     }
                 }
 
@@ -183,5 +234,187 @@ int main(int argc, char *argv[])
     }
 
     socket.close();
-    return a.exec();
+    return -1;
+}
+
+// Main SSL port mode (with client certificates and binary protocol)
+int sslPortMode(const QString &filterPattern, const QString &specificObject)
+{
+    QSslSocket socket;
+
+    // Read configuration from KaZa-Control-Panel.conf
+    QString configPath = QDir::homePath() + "/.config/KaZoe/KaZa-Control-Panel.conf";
+    QSettings settings(configPath, QSettings::IniFormat);
+
+    if (!settings.contains("ssl/host")) {
+        qDebug() << "Error: SSL configuration not found in" << configPath;
+        qDebug() << "Please run KaZa-Control-Panel first to configure the connection";
+        return -1;
+    }
+
+    QString host = settings.value("ssl/host").toString();
+    int port = settings.value("ssl/port", 1756).toInt();
+    QString caCertPath = settings.value("ssl/cacert").toString();
+    QString clientCertPath = settings.value("ssl/client_cert").toString();
+    QString clientKeyPath = settings.value("ssl/client_key").toString();
+    QString clientPass = settings.value("ssl/client_pass").toString();
+
+    // Load CA certificate
+    QFile caCertFile(caCertPath);
+    if (!caCertFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "Failed to open CA certificate:" << caCertPath;
+        return -1;
+    }
+    QList<QSslCertificate> caCerts = QSslCertificate::fromDevice(&caCertFile, QSsl::Pem);
+    caCertFile.close();
+
+    if (caCerts.isEmpty()) {
+        qDebug() << "No CA certificates found in" << caCertPath;
+        return -1;
+    }
+
+    // Load client certificate
+    QFile clientCertFile(clientCertPath);
+    if (!clientCertFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "Failed to open client certificate:" << clientCertPath;
+        return -1;
+    }
+    QList<QSslCertificate> clientCerts = QSslCertificate::fromDevice(&clientCertFile, QSsl::Pem);
+    clientCertFile.close();
+
+    if (clientCerts.isEmpty()) {
+        qDebug() << "No client certificates found in" << clientCertPath;
+        return -1;
+    }
+
+    // Load client key
+    QFile clientKeyFile(clientKeyPath);
+    if (!clientKeyFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "Failed to open client key:" << clientKeyPath;
+        return -1;
+    }
+    QSslKey privateKey(&clientKeyFile, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, clientPass.toUtf8());
+    clientKeyFile.close();
+
+    if (privateKey.isNull()) {
+        qDebug() << "Failed to load private key (check password)";
+        return -1;
+    }
+
+    // Configure SSL
+    QSslConfiguration sslConfig = socket.sslConfiguration();
+    sslConfig.setCaCertificates(caCerts);
+    sslConfig.setLocalCertificate(clientCerts.first());
+    sslConfig.setPrivateKey(privateKey);
+    sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
+    socket.setSslConfiguration(sslConfig);
+
+    // Create protocol handler
+    KaZaProtocol protocol(&socket);
+
+    // State tracking
+    bool versionNegotiated = false;
+    bool objectsListReceived = false;
+    QMap<QString, QPair<QVariant, QString>> objectsList;
+    int exitCode = -1;
+
+    // Connect protocol signals
+    QObject::connect(&protocol, &KaZaProtocol::versionNegotiated, [&]() {
+        versionNegotiated = true;
+        // Request objects list (server sends ALL objects, no subscription needed)
+        protocol.sendCommand("OBJLIST?");
+    });
+
+    QObject::connect(&protocol, &KaZaProtocol::versionIncompatible, [&](QString reason) {
+        socket.disconnectFromHost();
+        exitCode = -1;
+    });
+
+    QObject::connect(&protocol, &KaZaProtocol::frameObjectsList,
+                     [&](const QMap<QString, QPair<QVariant, QString>> &objects) {
+        objectsListReceived = true;
+        objectsList = objects;
+
+        // Print objects
+        printObjects(objectsList, filterPattern, specificObject);
+
+        // Disconnect
+        socket.disconnectFromHost();
+        exitCode = 0;
+    });
+
+    // SSL connection signals
+    QObject::connect(&socket, &QSslSocket::encrypted, [&]() {
+        // Send version negotiation
+        protocol.sendVersion();
+    });
+
+    QObject::connect(&socket, QOverload<const QList<QSslError>&>::of(&QSslSocket::sslErrors),
+                     [&](const QList<QSslError> &errors) {
+        socket.ignoreSslErrors();
+    });
+
+    QObject::connect(&socket, &QSslSocket::disconnected, [&]() {
+        QCoreApplication::quit();
+    });
+
+    // Setup timeout
+    QTimer::singleShot(10000, [&]() {
+        if (!objectsListReceived) {
+            socket.disconnectFromHost();
+            exitCode = -1;
+        }
+    });
+
+    // Connect to server
+    socket.connectToHostEncrypted(host, port);
+
+    if (!socket.waitForConnected(5000)) {
+        qDebug() << "Connection error:" << socket.errorString();
+        return -1;
+    }
+
+    if (!socket.waitForEncrypted(5000)) {
+        qDebug() << "SSL handshake error:" << socket.errorString();
+        return -1;
+    }
+
+    // Run event loop to process protocol messages
+    QCoreApplication::exec();
+
+    return exitCode;
+}
+
+int main(int argc, char *argv[])
+{
+    QCoreApplication a(argc, argv);
+
+    // Parse arguments
+    bool useSslPort = false;
+    bool useFilter = false;
+    QString filterPattern;
+    QString specificObject;
+
+    int argStart = 1;
+    if (argc > 1 && QString::fromUtf8(argv[1]) == "--ssl") {
+        useSslPort = true;
+        argStart = 2;
+    }
+
+    if (argc > argStart) {
+        QString arg = QString::fromUtf8(argv[argStart]);
+        if (arg.startsWith("/")) {
+            useFilter = true;
+            filterPattern = arg.mid(1);
+        } else {
+            specificObject = arg;
+        }
+    }
+
+    // Choose mode
+    if (useSslPort) {
+        return sslPortMode(filterPattern, specificObject);
+    } else {
+        return controlPortMode(filterPattern, specificObject);
+    }
 }
