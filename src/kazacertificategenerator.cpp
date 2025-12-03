@@ -77,7 +77,9 @@ bool KaZaCertificateGenerator::generateClientCertificate(const QString &username
     }
     EVP_PKEY_CTX_free(ctx);
 
-    // Save client private key (encrypted with DES3-CBC)
+    // Save client private key
+    // Android doesn't support PBES2 encryption (OpenSSL 3.0 default)
+    // Use unencrypted PKCS#8 format - safe since stored in app private storage
     QString keyPath = basePath + "/" + username + ".key";
     FILE *keyFile = fopen(keyPath.toUtf8().constData(), "wb");
     if (!keyFile) {
@@ -86,18 +88,17 @@ bool KaZaCertificateGenerator::generateClientCertificate(const QString &username
         return false;
     }
 
-    // Encrypt with DES3 and user password
-    QByteArray passwordBytes = userPassword.toUtf8();
-    if (!PEM_write_PrivateKey(keyFile, client_key, EVP_des_ede3_cbc(),
-                               (unsigned char*)passwordBytes.data(),
-                               passwordBytes.length(), NULL, NULL)) {
-        qCritical() << "Failed to write encrypted client private key:" << getLastOpenSSLError();
+    // Write unencrypted PKCS#8 key (Android compatible)
+    // Note: The key will be stored in the Android app's private storage
+    // which is only accessible by the app itself, so encryption is not critical
+    if (!PEM_write_PKCS8PrivateKey(keyFile, client_key, NULL, NULL, 0, NULL, NULL)) {
+        qCritical() << "Failed to write client private key:" << getLastOpenSSLError();
         fclose(keyFile);
         EVP_PKEY_free(client_key);
         return false;
     }
     fclose(keyFile);
-    qInfo() << "Client private key generated successfully";
+    qInfo() << "Client private key generated successfully (unencrypted PKCS#8 - Android compatible)";
 
     // Load CA certificate and key
     qInfo() << "Loading CA certificate and key for signing...";

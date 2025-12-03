@@ -34,15 +34,18 @@ public:
      * @brief Generate client certificate signed by CA
      *
      * Creates:
-     * - <username>.key: 2048-bit RSA private key (encrypted with DES3)
+     * - <username>.key: 2048-bit RSA private key (unencrypted PKCS#8 for Android compatibility)
      * - <username>.csr: Certificate signing request
      * - <username>.cert.pem: Client certificate signed by CA (10 years)
      *
      * Certificate subject: CN=<username>, O=KaZa, C=FR
      * Extensions: clientAuth, digitalSignature
      *
+     * Note: Keys are generated unencrypted because Android doesn't support PBES2
+     * encryption (OpenSSL 3.0 default). Keys are stored in app private storage.
+     *
      * @param username Username for client certificate CN
-     * @param userPassword Password to encrypt client private key
+     * @param userPassword Password to encrypt client private key (currently unused)
      * @param hostname Hostname from server configuration
      * @param basePath Directory to store certificates (e.g., /var/lib/kazad)
      * @return true on success, false on failure
