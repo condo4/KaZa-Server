@@ -263,7 +263,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         }
         else
         {
-            qWarning().noquote().nospace() << "SSL " << id() << ": Invalid POSITION command format";
+            qWarning().noquote().nospace() << "SSL " << id() << ": Invalid POSITION command format " << command;
         }
         return;
     }
