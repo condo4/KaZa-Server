@@ -234,6 +234,11 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         return;
     }
 
+    if(c[0] == "PING")
+    {
+        m_protocol.sendCommand("PONG");
+    }
+
     qWarning().noquote().nospace() << "SSL " << id() << ": Unknown System Command " << command;
 }
 
