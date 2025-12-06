@@ -23,6 +23,8 @@ private slots:
 
 private:
     void __clientconf(const QString &adminPassword, const QString &username, const QString &userPassword);
+
+    void _disconnectFromHost();
 };
 
 #endif // KAZAREMOTECONNECTION_H

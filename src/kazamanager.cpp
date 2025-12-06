@@ -358,7 +358,6 @@ void KaZaManager::_disconnection() {
         qWarning() << "Error on disconnect";
         return;
     }
-    qDebug().noquote().nospace() << "SSL " << connection->id() << ": Disconnected";
     m_clients.removeAll(connection);
     connection->deleteLater();
 }
@@ -388,7 +387,6 @@ void KaZaManager::_remoteDisconnection() {
         qWarning() << "Error on disconnect";
         return;
     }
-    qDebug().noquote().nospace() << "Control SSL " << connection->id() << ": Disconnected";
     m_remoteclients.removeAll(connection);
     connection->deleteLater();
 }

@@ -22,7 +22,7 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::versionIncompatible, this, &KaZaConnection::_processVersionIncompatible);
 
     // Setup regular protocol signals
-    QObject::connect(&m_protocol, &KaZaProtocol::disconnectFromHost, this, &KaZaConnection::disconnectFromHost);
+    QObject::connect(&m_protocol, &KaZaProtocol::disconnectFromHost, this, &KaZaConnection::_disconnectFromHost);
     QObject::connect(&m_protocol, &KaZaProtocol::frameCommand, this, &KaZaConnection::_processFrameSystem);
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
     QObject::connect(&m_protocol, &KaZaProtocol::frameDbQuery, this, &KaZaConnection::_processFrameDbQuery);
@@ -63,11 +63,11 @@ void KaZaConnection::sendObjectsList()
 void KaZaConnection::enableDMZ()
 {
     if (m_dmzEnabled) {
-        qInfo().noquote().nospace() << "SSL " << id() << ": DMZ already enabled";
+        qInfo().noquote().nospace() << idlog() << ": DMZ already enabled";
         return;
     }
 
-    qInfo().noquote().nospace() << "SSL " << id() << ": Enabling DMZ - subscribing to all objects";
+    qInfo().noquote().nospace() << idlog() << ": Enabling DMZ - subscribing to all objects";
     m_dmzEnabled = true;
 
     // Subscribe to all existing objects
@@ -115,7 +115,21 @@ void KaZaConnection::_processVersionNegotiated(QString &username, QString &devic
     m_channel = channel;
     m_devicename = devicename;
     m_user = username;
-    qInfo().noquote().nospace() << "SSL " << id() << ": " << username << " connected with " << devicename << " for " << channel;
+    QString channelName;
+    switch(m_channel) {
+    case 0:
+        channelName = "service";
+        break;
+    case 1:
+        channelName = "application";
+        break;
+    case 2:
+        channelName = "cpanel";
+        break;
+    }
+
+    m_idlog = m_user + "[" + channelName + "]@" + m_devicename + ":" + QString::number(m_protocol.peerPort());
+    qInfo().noquote().nospace() << idlog() << ": " << "connected";
     m_valid = true;
 
     m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
@@ -148,7 +162,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
     {
         // Register user and send app Checksum
 #ifdef DEBUG_CONNECTION
-        qDebug().noquote().nospace() << "SSL " << id() << ": System Asking application";
+        qDebug().noquote().nospace() << idlog() << ": System Asking application";
 #endif
         m_protocol.sendFile("APP", KaZaManager::appFilename());
         return;
@@ -158,7 +172,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
     {
         // Client requests compressed objects list
 #ifdef DEBUG_CONNECTION
-        qDebug().noquote().nospace() << "SSL " << id() << ": Client requesting objects list";
+        qDebug().noquote().nospace() << idlog() << ": Client requesting objects list";
 #endif
         sendObjectsList();
         return;
@@ -178,7 +192,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         QString &name = c[1];
         quint16 index = c[2].toInt();
 #ifdef DEBUG_CONNECTION
-        qDebug().noquote().nospace() << "SSL " << id() << ": System Register object " << c[1];
+        qDebug().noquote().nospace() << idlog() << ": System Register object " << c[1];
 #endif
         if(!m_obj.contains(c[1]))
         {
@@ -229,7 +243,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         QStringList objectNames = KaZaManager::getObjectKeys();
         QString objectList = objectNames.join(',');
 
-        qInfo().noquote().nospace() << "SSL " << id() << ": Sending list of " << objectNames.size() << " objects";
+        qInfo().noquote().nospace() << idlog() << ": Sending list of " << objectNames.size() << " objects";
         m_protocol.sendCommand("LISTOBJECTS:" + objectList);
         return;
     }
@@ -246,28 +260,28 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         // Format: POSITION:lat:lon:altitude:accuracy:provider
         if(c.size() == 6)
         {
-            double latitude = c[1].toDouble();
-            double longitude = c[2].toDouble();
-            double altitude = c[3].toDouble();
-            double accuracy = c[4].toDouble();
+            double latitude = c[1].replace(",",".").toDouble();
+            double longitude = c[2].replace(",",".").toDouble();
+            double altitude = c[3].replace(",",".").toDouble();
+            double accuracy = c[4].replace(",",".").toDouble();
             m_gpsProvider = c[5];  // Handle provider name with colons
 
             m_gpsPosition.setLatitude(latitude);
             m_gpsPosition.setLongitude(longitude);
             m_gpsPosition.setAltitude(altitude);
 
-            qInfo().noquote().nospace() << "SSL " << id() << ": GPS position received - "
+            qInfo().noquote().nospace() << idlog() << ": Position: "
                                        << "Lat: " << latitude << ", Lon: " << longitude
                                        << ", Alt: " << altitude << ", Provider: " << m_gpsProvider;
         }
         else
         {
-            qWarning().noquote().nospace() << "SSL " << id() << ": Invalid POSITION command format " << command;
+            qWarning().noquote().nospace() << idlog() << ": Invalid POSITION command format " << command;
         }
         return;
     }
 
-    qWarning().noquote().nospace() << "SSL " << id() << ": Unknown System Command " << command;
+    qWarning().noquote().nospace() << idlog() << ": Unknown System Command " << command;
 }
 
 void KaZaConnection::_objectChanged() {
@@ -278,10 +292,21 @@ void KaZaConnection::_objectChanged() {
     m_protocol.sendObject(m_ids[obj->name()], obj->value(), false);
 }
 
+void KaZaConnection::_disconnectFromHost()
+{
+    qInfo().noquote().nospace() << idlog() << ": Disconnected";
+    emit disconnectFromHost();
+}
+
+QString KaZaConnection::idlog() const
+{
+    return m_idlog;
+}
+
 void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool confirm) {
     // Version negotiation is mandatory - reject if not negotiated
     if (!m_valid) {
-        qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
+        qWarning().noquote().nospace() << id() << ": Rejecting frame - version not negotiated";
         emit disconnectFromHost();
         return;
     }
@@ -289,7 +314,7 @@ void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool 
     KaZaObject *obj = m_obj.value(m_ids.key(objectId), nullptr);
     if(obj == nullptr)
     {
-        qWarning() << "Can't find object with id" << objectId;
+        qWarning() << idlog() << ": Can't find object with id" << objectId;
         return;
     }
     obj->changeValue(value, confirm);
@@ -299,7 +324,7 @@ void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool 
 void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
     // Version negotiation is mandatory - reject if not negotiated
     if (!m_valid) {
-        qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
+        qWarning().noquote().nospace() << id() << ": Rejecting frame - version not negotiated";
         emit disconnectFromHost();
         return;
     }

@@ -19,6 +19,7 @@ class KaZaConnection : public QObject
     QString m_user;
     QString m_devicename;
     int m_channel;
+    QString m_idlog;
     QMap<QString, KaZaObject*>  m_obj;
     QMap<QString, quint16>      m_ids;
     QMap<uint16_t, QTcpSocket*> m_sockets;
@@ -57,7 +58,10 @@ private slots:
     void _sockStateChange(QAbstractSocket::SocketState state);
 
     void _objectChanged();
+    void _disconnectFromHost();
 
+private:
+    QString idlog() const;
 };
 
 #endif // KAZACONNECTION_H

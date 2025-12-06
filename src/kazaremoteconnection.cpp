@@ -11,8 +11,8 @@ KaZaRemoteConnection::KaZaRemoteConnection(QTcpSocket *socket, QObject *parent)
     , m_socket(socket)
 {
     QObject::connect(m_socket, &QTcpSocket::readyRead, this, &KaZaRemoteConnection::_dataReady);
-    QObject::connect(m_socket, &QTcpSocket::disconnected, this, &KaZaRemoteConnection::disconnectFromHost);
-    qDebug().noquote().nospace() << "Control SSL " << id() << ": Connected";
+    QObject::connect(m_socket, &QTcpSocket::disconnected, this, &KaZaRemoteConnection::_disconnectFromHost);
+    qDebug().noquote().nospace() << "[CTRL][" << id() << "]: Connected";
 }
 
 
@@ -39,7 +39,7 @@ void KaZaRemoteConnection::_dataReady()
 
 void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
     QString cmd = packet.trimmed();
-    qDebug().noquote().nospace() << "Control SSL " << id() << ": Command [" << cmd << "]";
+    qDebug().noquote().nospace() << "[CTRL][" << id() << "]: Command '" << cmd << "'";
 
     // New protocol: clientconf? adminpass username userpass
     if(cmd.startsWith("clientconf?"))
@@ -53,7 +53,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
             __clientconf(adminPassword, username, userPassword);
         } else {
             // Invalid format
-            qWarning().noquote().nospace() << "Control SSL " << id() << ": Invalid clientconf? format. Expected: clientconf? adminpass username userpass";
+            qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Invalid clientconf? format. Expected: clientconf? adminpass username userpass";
             m_socket->write("ERROR: Invalid format. Expected: clientconf? adminpass username userpass\n");
             m_socket->disconnectFromHost();
         }
@@ -81,7 +81,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
             }
             else
             {
-                qWarning().noquote().nospace() << "Control SSL " << id() << ": Object not found: " << key;
+                qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Object not found: " << key;
             }
             m_socket->write("\n");
             return;
@@ -102,7 +102,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
             }
             else
             {
-                qWarning().noquote().nospace() << "Control SSL " << id() << ": Object in key list but not found: " << key;
+                qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Object in key list but not found: " << key;
             }
         }
         m_socket->write("\n");
@@ -113,7 +113,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
         QStringList args = cmd.split(" ");
         if(args.size() != 2)
         {
-            qWarning().noquote().nospace() << "Control SSL " << id() << ": Invalid refresh query: " << cmd;
+            qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Invalid refresh query: " << cmd;
             return;
         }
         QString key = args[1];
@@ -125,7 +125,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
         }
         else
         {
-            qWarning().noquote().nospace() << "Control SSL " << id() << ": Object not found for refresh: " << key;
+            qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Object not found for refresh: " << key;
             m_socket->write("ERROR: Object not found\n");
         }
         m_socket->write("\n");
@@ -144,7 +144,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 }
 
 void KaZaRemoteConnection::__clientconf(const QString &adminPassword, const QString &username, const QString &userPassword) {
-    qInfo().noquote().nospace() << "Control SSL " << id() << ": Processing clientconf request for user: " << username;
+    qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Processing clientconf request for user: " << username;
 
     // Load server settings
     QSettings settings("/etc/kazad.conf", QSettings::IniFormat);
@@ -158,13 +158,13 @@ void KaZaRemoteConnection::__clientconf(const QString &adminPassword, const QStr
 
     // Verify admin password
     if (adminPassword != configPassword) {
-        qWarning().noquote().nospace() << "Control SSL " << id() << ": Authentication failed - invalid admin password";
+        qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Authentication failed - invalid admin password";
         m_socket->write("ERROR: Authentication failed\n");
         m_socket->disconnectFromHost();
         return;
     }
 
-    qInfo().noquote().nospace() << "Control SSL " << id() << ": Admin authentication successful";
+    qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Admin authentication successful";
 
     // Hardcoded paths
     const QString basePath = "/var/lib/kazad";
@@ -173,19 +173,19 @@ void KaZaRemoteConnection::__clientconf(const QString &adminPassword, const QStr
 
     // Check if client certificate already exists
     if (!QFile::exists(clientCertPath) || !QFile::exists(clientKeyPath)) {
-        qInfo().noquote().nospace() << "Control SSL " << id() << ": Client certificate not found, generating for user: " << username;
+        qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Client certificate not found, generating for user: " << username;
 
         // Generate client certificate
         if (!KaZaCertificateGenerator::generateClientCertificate(username, userPassword, hostname, basePath)) {
-            qCritical().noquote().nospace() << "Control SSL " << id() << ": Failed to generate client certificate for user: " << username;
+            qCritical().noquote().nospace() << "[CTRL][" << id() << "]: Failed to generate client certificate for user: " << username;
             m_socket->write("ERROR: Failed to generate client certificate\n");
             m_socket->disconnectFromHost();
             return;
         }
 
-        qInfo().noquote().nospace() << "Control SSL " << id() << ": Client certificate generated successfully for user: " << username;
+        qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Client certificate generated successfully for user: " << username;
     } else {
-        qInfo().noquote().nospace() << "Control SSL " << id() << ": Using existing client certificate for user: " << username;
+        qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Using existing client certificate for user: " << username;
     }
 
     // Send configuration as XML
@@ -238,5 +238,10 @@ void KaZaRemoteConnection::__clientconf(const QString &adminPassword, const QStr
 
     m_socket->write("</param>\n");
 
-    qInfo().noquote().nospace() << "Control SSL " << id() << ": Client configuration sent successfully for user: " << username;
+    qInfo().noquote().nospace() << "[CTRL][" << id() << "]: Client configuration sent successfully for user: " << username;
+}
+
+void KaZaRemoteConnection::_disconnectFromHost()
+{
+    emit disconnectFromHost();
 }
