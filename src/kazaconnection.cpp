@@ -242,16 +242,15 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
 
     if(c[0] == "POSITION")
     {
-        // Parse GPS position: POSITION:45,351013,3,992429,100,0,network
-        // Format: lat_int,lat_dec,lon_int,lon_dec,altitude,accuracy,provider
-        if(c.size() >= 7)
+        // Parse GPS position: POSITION:45,351013:3,992429:100:network
+        // Format: POSITION:lat:lon:altitude:accuracy:provider
+        if(c.size() == 6)
         {
-            QString latStr = c[1] + "." + c[2];  // 45.351013
-            QString lonStr = c[3] + "." + c[4];  // 3.992429
-            double latitude = latStr.toDouble();
-            double longitude = lonStr.toDouble();
-            double altitude = c[5].toDouble();
-            m_gpsProvider = c.size() > 7 ? c.mid(7).join(":") : c[7];  // Handle provider name with colons
+            double latitude = c[1].toDouble();
+            double longitude = c[2].toDouble();
+            double altitude = c[3].toDouble();
+            double accuracy = c[4].toDouble();
+            m_gpsProvider = c[5];  // Handle provider name with colons
 
             m_gpsPosition.setLatitude(latitude);
             m_gpsPosition.setLongitude(longitude);
