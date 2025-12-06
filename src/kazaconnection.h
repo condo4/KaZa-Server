@@ -16,10 +16,13 @@ class KaZaConnection : public QObject
     Q_OBJECT
     KaZaProtocol m_protocol;
     QString m_user;
+    QString m_devicename;
+    int m_channel;
     QMap<QString, KaZaObject*>  m_obj;
     QMap<QString, quint16>      m_ids;
     QMap<uint16_t, QTcpSocket*> m_sockets;
     bool m_dmzEnabled {false};
+    bool m_valid {false};
 
 public:
     explicit KaZaConnection(QTcpSocket *socket, QObject *parent = nullptr);
@@ -36,8 +39,7 @@ signals:
 
 private slots:
     // Version negotiation
-    void _processVersionReceived(quint8 major, quint8 minor);
-    void _processVersionNegotiated();
+    void _processVersionNegotiated(QString &username, QString &devicename, int channel);
     void _processVersionIncompatible(QString reason);
 
     // Regular protocol frames

@@ -18,7 +18,6 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     qDebug().noquote().nospace() << "SSL " << id() << ": Connected";
 #endif
     // Setup version negotiation signals (server waits for client version)
-    QObject::connect(&m_protocol, &KaZaProtocol::versionReceived, this, &KaZaConnection::_processVersionReceived);
     QObject::connect(&m_protocol, &KaZaProtocol::versionNegotiated, this, &KaZaConnection::_processVersionNegotiated);
     QObject::connect(&m_protocol, &KaZaProtocol::versionIncompatible, this, &KaZaConnection::_processVersionIncompatible);
 
@@ -110,34 +109,16 @@ void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index, bool send
     }
 }
 
-void KaZaConnection::_processVersionReceived(quint8 major, quint8 minor)
+
+void KaZaConnection::_processVersionNegotiated(QString &username, QString &devicename, int channel)
 {
-    qInfo().noquote().nospace() << "SSL " << id() << ": Client protocol version " << major << "." << minor
-                                 << " (Server: " << KaZaProtocol::PROTOCOL_VERSION_MAJOR << "." << KaZaProtocol::PROTOCOL_VERSION_MINOR << ")";
+    m_channel = channel;
+    m_devicename = devicename;
+    m_user = username;
+    qInfo().noquote().nospace() << "SSL " << id() << ": " << username << " connected with " << devicename << " for " << channel;
+    m_valid = true;
 
-    // Check compatibility: major version must match
-    bool compatible = (major == KaZaProtocol::PROTOCOL_VERSION_MAJOR);
-
-    if (compatible) {
-        qInfo().noquote().nospace() << "SSL " << id() << ": Protocol versions compatible";
-    } else {
-        qWarning().noquote().nospace() << "SSL " << id() << ": Protocol version INCOMPATIBLE";
-    }
-
-    // Send version response
-    m_protocol.sendVersionResponse(compatible);
-
-    if (!compatible) {
-        // Disconnect after short delay to allow response to be sent
-        QTimer::singleShot(1000, this, [this]() {
-            emit disconnectFromHost();
-        });
-    }
-}
-
-void KaZaConnection::_processVersionNegotiated()
-{
-    qInfo().noquote().nospace() << "SSL " << id() << ": Version negotiation successful - initializing connection";
+    m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
 
     // Send all registered objects to client
     for(const QString &name : m_obj.keys())
@@ -156,22 +137,13 @@ void KaZaConnection::_processVersionIncompatible(QString reason)
 
 void KaZaConnection::_processFrameSystem(const QString &command) {
     // Version negotiation is mandatory - reject if not negotiated
-    if (!m_protocol.isVersionNegotiated()) {
+    if (!m_valid) {
         qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
         emit disconnectFromHost();
         return;
     }
 
     QStringList c = command.split(':');
-    if(c[0] == "USER")
-    {
-        // Register user and send app Checksum
-        m_user = c[1];
-        qDebug().noquote().nospace() << "SSL " << id() << " " << m_user << " Connected";
-        m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
-        return;
-    }
-
     if(c[0] == "APP?")
     {
         // Register user and send app Checksum
@@ -275,7 +247,7 @@ void KaZaConnection::_objectChanged() {
 
 void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool confirm) {
     // Version negotiation is mandatory - reject if not negotiated
-    if (!m_protocol.isVersionNegotiated()) {
+    if (!m_valid) {
         qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
         emit disconnectFromHost();
         return;
@@ -293,7 +265,7 @@ void KaZaConnection::_processFrameObject(quint16 objectId, QVariant value, bool 
 
 void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
     // Version negotiation is mandatory - reject if not negotiated
-    if (!m_protocol.isVersionNegotiated()) {
+    if (!m_valid) {
         qWarning().noquote().nospace() << "SSL " << id() << ": Rejecting frame - version not negotiated";
         emit disconnectFromHost();
         return;

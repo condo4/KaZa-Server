@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QTimer>
 #include <QDataStream>
+#include <QHostInfo>
 #include <QDir>
 #include <QElapsedTimer>
 #include "../protocol/kazaprotocol.h"
@@ -319,12 +320,6 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
     int exitCode = -1;
 
     // Connect protocol signals
-    QObject::connect(&protocol, &KaZaProtocol::versionNegotiated, [&]() {
-        versionNegotiated = true;
-        // Request objects list (server sends ALL objects, no subscription needed)
-        protocol.sendCommand("OBJLIST?");
-    });
-
     QObject::connect(&protocol, &KaZaProtocol::versionIncompatible, [&](QString reason) {
         socket.disconnectFromHost();
         exitCode = -1;
@@ -345,8 +340,9 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
 
     // SSL connection signals
     QObject::connect(&socket, &QSslSocket::encrypted, [&]() {
-        // Send version negotiation
-        protocol.sendVersion();
+        // Socket is connected
+        QHostInfo info;
+        protocol.sendVersion("kls", info.hostName(), 2);
     });
 
     QObject::connect(&socket, QOverload<const QList<QSslError>&>::of(&QSslSocket::sslErrors),
