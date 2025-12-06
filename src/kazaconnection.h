@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QVariant>
 #include <QAbstractSocket>
+#include <QGeoCoordinate>
 #include <kazaprotocol.h>
 
 
@@ -23,6 +24,8 @@ class KaZaConnection : public QObject
     QMap<uint16_t, QTcpSocket*> m_sockets;
     bool m_dmzEnabled {false};
     bool m_valid {false};
+    QGeoCoordinate m_gpsPosition;
+    QString m_gpsProvider;
 
 public:
     explicit KaZaConnection(QTcpSocket *socket, QObject *parent = nullptr);
@@ -33,6 +36,8 @@ public:
     void enableDMZ();
     void subscribeToObject(KaZaObject *obj, quint16 index, bool sendDesc = true);
     bool isDmzEnabled() const { return m_dmzEnabled; }
+    QGeoCoordinate gpsPosition() const { return m_gpsPosition; }
+    QString gpsProvider() const { return m_gpsProvider; }
 
 signals:
     void disconnectFromHost();

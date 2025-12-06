@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Qml Network Sql Positioning)
 find_package(OpenSSL REQUIRED)
 
 include_directories(src)
@@ -47,7 +47,7 @@ target_include_directories(kazad PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_include_directories(kls PUBLIC ${KAZA_PROTOCOL_DIRECTORY})
 target_link_libraries(KaZaLib Qt6::Core Qt6::Network)
 set_target_properties(KaZaLib PROPERTIES VERSION 2.0.0 SOVERSION 2)
-target_link_libraries(kazad PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql systemd OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(kazad PRIVATE KaZaLib Qt6::Core Qt6::Qml Qt6::Sql Qt6::Positioning systemd OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(kls Qt6::Core Qt6::Network OpenSSL::SSL OpenSSL::Crypto)
 
 
