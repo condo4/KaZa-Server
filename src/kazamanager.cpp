@@ -293,22 +293,86 @@ void KaZaManager::sendNotify(QString text)
         qWarning() << "No KaZaManager object";
         return;
     }
+
+    // Check if text starts with "/" for user filtering
+    QStringList targetUsers;
+    QString message = text;
+
+    if (text.startsWith("/"))
+    {
+        // Extract user names and actual message
+        QStringList parts = text.split(' ', Qt::SkipEmptyParts);
+
+        for (const QString& part : parts)
+        {
+            if (part.startsWith("/"))
+            {
+                // Remove the leading "/" and add to target users list
+                QString username = part.mid(1); // Remove first character "/"
+                if (!username.isEmpty())
+                {
+                    targetUsers.append(username);
+                }
+            }
+            else
+            {
+                // Found the start of the actual message
+                // Reconstruct the message from this point
+                int messageStart = text.indexOf(part);
+                message = text.mid(messageStart);
+                break;
+            }
+        }
+    }
+
+    // Send notification to appropriate connections
     for(KaZaConnection* conn: m_instance->m_clients)
     {
-        conn->sendNotify(text);
+        // If targetUsers is empty, send to all (no user filtering)
+        // Otherwise, only send if this connection's user is in the target list
+        if (targetUsers.isEmpty() || targetUsers.contains(conn->user()))
+        {
+            conn->sendNotify(message);
+        }
     }
 }
 
-void KaZaManager::askPosition()
+void KaZaManager::askPosition(QString param)
 {
     if(!m_instance)
     {
         qWarning() << "No KaZaManager object";
         return;
     }
+
+    // Check if text starts with "/" for user filtering
+    QStringList targetUsers;
+
+    if (param.startsWith("/"))
+    {
+        // Extract user names and actual message
+        QStringList parts = param.split(' ', Qt::SkipEmptyParts);
+
+        for (const QString& part : parts)
+        {
+            if (part.startsWith("/"))
+            {
+                // Remove the leading "/" and add to target users list
+                QString username = part.mid(1); // Remove first character "/"
+                if (!username.isEmpty())
+                {
+                    targetUsers.append(username);
+                }
+            }
+        }
+    }
+
     for(KaZaConnection* conn: m_instance->m_clients)
     {
-        conn->askPosition();
+        if (targetUsers.isEmpty() || targetUsers.contains(conn->user()))
+        {
+            conn->askPosition();
+        }
     }
 }
 

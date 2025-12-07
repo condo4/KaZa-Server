@@ -10,6 +10,11 @@
 #include <QSqlRecord>
 
 
+QString KaZaConnection::user() const
+{
+    return m_user;
+}
+
 KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     : QObject{parent}
     , m_protocol(socket)
@@ -35,11 +40,13 @@ quint16 KaZaConnection::id() {
 }
 
 void KaZaConnection::sendNotify(QString text) {
+    qInfo() << "Notify " << m_user << ": " << text;
     m_protocol.sendCommand("NOTIFY:" + text);
 }
 
 void KaZaConnection::askPosition()
 {
+    qInfo() << "Ask position " << m_user;
     m_protocol.sendCommand("POSITION?");
 }
 

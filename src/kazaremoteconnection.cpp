@@ -138,7 +138,12 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 
     if(cmd.startsWith("position?"))
     {
-        KaZaManager::askPosition();
+        QString param;
+        if(cmd.size() > 9)
+        {
+            param = cmd.mid(10);
+        }
+        KaZaManager::askPosition(param);
     }
 
 }

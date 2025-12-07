@@ -47,7 +47,7 @@ public:
     static QString appChecksum();
     static QString appFilename();
     static void sendNotify(QString text);
-    static void askPosition();
+    static void askPosition(QString param);
     static void sendObjectsList();
 
 public slots:

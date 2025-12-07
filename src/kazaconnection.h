@@ -40,6 +40,8 @@ public:
     QGeoCoordinate gpsPosition() const { return m_gpsPosition; }
     QString gpsProvider() const { return m_gpsProvider; }
 
+    QString user() const;
+
 signals:
     void disconnectFromHost();
 
