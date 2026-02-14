@@ -52,6 +52,7 @@ public:
 
 public slots:
     bool runDbQuery(const QString &query) const;
+    void notify(QString message);
 
 private:
     bool ensureCertificatesExist();

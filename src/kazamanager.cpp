@@ -293,6 +293,7 @@ void KaZaManager::sendNotify(QString text)
         qWarning() << "No KaZaManager object";
         return;
     }
+    qInfo() << "NOTIFICATION: " << text;
 
     // Check if text starts with "/" for user filtering
     QStringList targetUsers;
@@ -311,7 +312,7 @@ void KaZaManager::sendNotify(QString text)
                 QString username = part.mid(1); // Remove first character "/"
                 if (!username.isEmpty())
                 {
-                    targetUsers.append(username);
+                    targetUsers.append(username.toLower());
                 }
             }
             else
@@ -330,7 +331,7 @@ void KaZaManager::sendNotify(QString text)
     {
         // If targetUsers is empty, send to all (no user filtering)
         // Otherwise, only send if this connection's user is in the target list
-        if (targetUsers.isEmpty() || targetUsers.contains(conn->user()))
+        if (targetUsers.isEmpty() || targetUsers.contains(conn->user().toLower()))
         {
             conn->sendNotify(message);
         }
@@ -361,7 +362,7 @@ void KaZaManager::askPosition(QString param)
                 QString username = part.mid(1); // Remove first character "/"
                 if (!username.isEmpty())
                 {
-                    targetUsers.append(username);
+                    targetUsers.append(username.toLower());
                 }
             }
         }
@@ -369,7 +370,7 @@ void KaZaManager::askPosition(QString param)
 
     for(KaZaConnection* conn: m_instance->m_clients)
     {
-        if (targetUsers.isEmpty() || targetUsers.contains(conn->user()))
+        if (targetUsers.isEmpty() || targetUsers.contains(conn->user().toLower()))
         {
             conn->askPosition();
         }
@@ -399,6 +400,11 @@ bool KaZaManager::runDbQuery(const QString &query) const
         qWarning().noquote().nospace() << query << " failed: " << q.lastError().text();
     }
     return res;
+}
+
+void KaZaManager::notify(QString message)
+{
+    sendNotify(message);
 }
 
 void KaZaManager::_pendingConnectionAvailable() {

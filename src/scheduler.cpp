@@ -118,6 +118,7 @@ class SchedulerPrivate {
 
     QTimer m_timer;
     bool m_ready {false};
+    bool m_enable {true};
     QSharedPointer<SchedulerFilter> m_filter_year;
     QSharedPointer<SchedulerFilter> m_filter_month;
     QSharedPointer<SchedulerFilter> m_filter_day;
@@ -150,6 +151,8 @@ Scheduler::Scheduler(QObject *parent)
 void Scheduler::__tick()
 {
     Q_D(Scheduler);
+    if(!d->m_enable)
+        return;
     QDateTime now = QDateTime::currentDateTime();
     d->m_timer.start((60 - now.time().second()) * 1000);
 
@@ -287,4 +290,20 @@ void Scheduler::setPatern(const QString &newPatern)
     setDay(tab[2]);
     setMonth(tab[3]);
     setWday(tab[4]);
+}
+
+
+bool Scheduler::enable() const
+{
+    Q_D(const Scheduler);
+    return d->m_enable;
+}
+
+void Scheduler::setEnable(bool newEnable)
+{
+    Q_D(Scheduler);
+    if(newEnable == d->m_enable)
+        return;
+    d->m_enable = newEnable;
+    emit enableChanged();
 }

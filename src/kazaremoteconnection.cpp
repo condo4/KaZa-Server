@@ -61,6 +61,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
     }
 
     // Convert to lowercase for other commands
+    QString msg = cmd;
     cmd = cmd.toLower();
 
     if(cmd.startsWith("obj?"))
@@ -133,7 +134,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
 
     if(cmd.startsWith("notify"))
     {
-        KaZaManager::sendNotify(cmd.mid(7));
+        KaZaManager::sendNotify(msg.mid(7));
     }
 
     if(cmd.startsWith("position?"))
@@ -141,7 +142,7 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
         QString param;
         if(cmd.size() > 9)
         {
-            param = cmd.mid(10);
+            param = msg.mid(10);
         }
         KaZaManager::askPosition(param);
     }
