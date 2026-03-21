@@ -139,6 +139,8 @@ void KaZaConnection::_processVersionNegotiated(QString &username, QString &devic
     qInfo().noquote().nospace() << idlog() << ": " << "connected";
     m_valid = true;
 
+    emit userAuthenticated();
+
     m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
 
     // Send all registered objects to client

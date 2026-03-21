@@ -44,6 +44,7 @@ public:
 
 signals:
     void disconnectFromHost();
+    void userAuthenticated();
 
 private slots:
     // Version negotiation

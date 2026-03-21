@@ -25,6 +25,7 @@ add_executable(kazad
   src/main.cpp
   src/kazamanager.h src/kazamanager.cpp
   src/kazaconnection.h src/kazaconnection.cpp
+  src/kazauser.h src/kazauser.cpp
   src/kazaremoteconnection.h src/kazaremoteconnection.cpp
   src/kzobject.h src/kzobject.cpp
   src/kazaelement.h src/kazaelement.cpp

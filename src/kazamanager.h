@@ -5,6 +5,7 @@
 #include <QSettings>
 #include <QQmlApplicationEngine>
 #include <QSslServer>
+#include <QSqlDatabase>
 
 // #define DEBUG_KNX
 // #define DEBUG_CONNECTION
@@ -13,7 +14,7 @@ class KaZaObject;
 class KaZaConnection;
 class KzAlarm;
 class KaZaRemoteConnection;
-class QSqlDatabase;
+class KaZaUser;
 
 
 class KaZaManager : public QObject
@@ -30,6 +31,8 @@ class KaZaManager : public QObject
     QString m_appFilename;
     bool m_databaseReady {false};
     bool m_initialized {false};
+    QSqlDatabase m_database;
+    QMap<QString, KaZaUser*> m_users;
 
     static KaZaManager *m_instance;
 
@@ -51,7 +54,7 @@ public:
     static void sendObjectsList();
 
 public slots:
-    bool runDbQuery(const QString &query) const;
+    bool runDbQuery(const QString &query);
     void notify(QString message);
 
 private:
@@ -59,6 +62,7 @@ private:
 
 private slots:
     void _pendingConnectionAvailable();
+    void _userAuthenticated();
     void _disconnection();
     void _pendingRemoteConnectionAvailable();
     void _remoteDisconnection();

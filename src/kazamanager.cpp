@@ -8,6 +8,7 @@
 #include "kzalarm.h"
 #include "internalobject.h"
 #include "kazacertificategenerator.h"
+#include "kazauser.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -157,13 +158,13 @@ KaZaManager::KaZaManager(QObject *parent)
     QString dbdriver = m_settings.value("database/driver").toString();
     if(!dbdriver.isEmpty())
     {
-        QSqlDatabase database = QSqlDatabase::addDatabase(m_settings.value("database/driver").toString());
-        database.setDatabaseName(m_settings.value("database/dbName").toString());
-        database.setHostName(m_settings.value("database/hostname").toString());
-        database.setPort(m_settings.value("database/port").toInt());
-        if(!database.open(m_settings.value("database/username").toString(), m_settings.value("database/password").toString()))
+        m_database = QSqlDatabase::addDatabase(m_settings.value("database/driver").toString());
+        m_database.setDatabaseName(m_settings.value("database/dbName").toString());
+        m_database.setHostName(m_settings.value("database/hostname").toString());
+        m_database.setPort(m_settings.value("database/port").toInt());
+        if(!m_database.open(m_settings.value("database/username").toString(), m_settings.value("database/password").toString()))
         {
-            qWarning() << "Database open error: " << database.lastError();
+            qWarning() << "Database open error: " << m_database.lastError();
         }
         else
         {
@@ -390,9 +391,20 @@ void KaZaManager::sendObjectsList()
     }
 }
 
-bool KaZaManager::runDbQuery(const QString &query) const
+bool KaZaManager::runDbQuery(const QString &query)
 {
     if(!m_databaseReady) return false;
+    if(!m_database.isOpen())
+    {
+        if(!m_database.open(m_settings.value("database/username").toString(), m_settings.value("database/password").toString()))
+        {
+            qWarning() << "Database open error: " << m_database.lastError();
+        }
+        else
+        {
+            m_databaseReady = true;
+        }
+    }
     QSqlQuery q;
     bool res = q.exec(query);
     if(!res)
@@ -413,12 +425,42 @@ void KaZaManager::_pendingConnectionAvailable() {
     {
         KaZaConnection *connection = new KaZaConnection(socket, this);
         QObject::connect(connection, &KaZaConnection::disconnectFromHost, this, &KaZaManager::_disconnection);
+        QObject::connect(connection, &KaZaConnection::userAuthenticated, this, &KaZaManager::_userAuthenticated);
         m_clients.append(connection);
     }
     else
     {
         qDebug() << "New connection FAILED" << m_server.errorString();
     }
+}
+
+void KaZaManager::_userAuthenticated() {
+    KaZaConnection *connection = qobject_cast<KaZaConnection*>(QObject::sender());
+    if(!connection)
+    {
+        qWarning() << "Error on user authentication";
+        return;
+    }
+
+    QString username = connection->user();
+    if(username.isEmpty())
+    {
+        qWarning() << "User authentication with empty username";
+        return;
+    }
+
+    // Check if user exists, create if not
+    KaZaUser *user = m_users.value(username, nullptr);
+    if(!user)
+    {
+        user = new KaZaUser(username, this);
+        m_users[username] = user;
+        qInfo() << "Created new user:" << username;
+    }
+
+    // Add connection to user
+    user->addConnection(connection);
+    qInfo() << "User" << username << "now has" << user->connections().size() << "connection(s)";
 }
 
 void KaZaManager::_disconnection() {
@@ -428,6 +470,19 @@ void KaZaManager::_disconnection() {
         qWarning() << "Error on disconnect";
         return;
     }
+
+    // Remove connection from user
+    QString username = connection->user();
+    if(!username.isEmpty())
+    {
+        KaZaUser *user = m_users.value(username, nullptr);
+        if(user)
+        {
+            user->removeConnection(connection);
+            qInfo() << "User" << username << "now has" << user->connections().size() << "connection(s)";
+        }
+    }
+
     m_clients.removeAll(connection);
     connection->deleteLater();
 }
