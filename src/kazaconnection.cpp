@@ -270,11 +270,28 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         // Format: POSITION:lat:lon:altitude:accuracy:provider
         if(c.size() == 6)
         {
-            double latitude = c[1].replace(",",".").toDouble();
-            double longitude = c[2].replace(",",".").toDouble();
-            double altitude = c[3].replace(",",".").toDouble();
-            double accuracy = c[4].replace(",",".").toDouble();
-            m_gpsProvider = c[5];  // Handle provider name with colons
+            bool ok;
+            double latitude = c[1].replace(",", ".").toDouble(&ok);
+            if (!ok || latitude < -90.0 || latitude > 90.0) {
+                qWarning().noquote() << idlog() << ": Invalid latitude in POSITION:" << c[1];
+                return;
+            }
+            double longitude = c[2].replace(",", ".").toDouble(&ok);
+            if (!ok || longitude < -180.0 || longitude > 180.0) {
+                qWarning().noquote() << idlog() << ": Invalid longitude in POSITION:" << c[2];
+                return;
+            }
+            double altitude = c[3].replace(",", ".").toDouble(&ok);
+            if (!ok) {
+                qWarning().noquote() << idlog() << ": Invalid altitude in POSITION:" << c[3];
+                return;
+            }
+            double accuracy = c[4].replace(",", ".").toDouble(&ok);
+            if (!ok || accuracy < 0.0) {
+                qWarning().noquote() << idlog() << ": Invalid accuracy in POSITION:" << c[4];
+                return;
+            }
+            m_gpsProvider = c[5];
 
             m_gpsPosition.setLatitude(latitude);
             m_gpsPosition.setLongitude(longitude);
@@ -284,6 +301,8 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
             KaZaUser *user = KaZaManager::findUser(m_user);
             if (user) {
                 user->setPosition(latitude, longitude, altitude, accuracy);
+            } else {
+                qWarning().noquote() << idlog() << ": POSITION drop — user not found:" << m_user;
             }
         }
         else
