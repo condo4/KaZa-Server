@@ -47,6 +47,7 @@ public:
     static const QList<KzAlarm*>& alarms();
     static KaZaObject* getObject(const QString &name);
     static QStringList getObjectKeys();
+    static const QList<KaZaObject*>& objects();
     static QVariant setting(QString id);
     static QString appChecksum();
     static QString appFilename();

@@ -256,6 +256,17 @@ QStringList KaZaManager::getObjectKeys()
     return res;
 }
 
+const QList<KaZaObject*>& KaZaManager::objects()
+{
+    static const QList<KaZaObject*> emptyList;
+    if (!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return emptyList;
+    }
+    return m_instance->m_objects;
+}
+
 QVariant KaZaManager::setting(QString id) {
     if(!m_instance)
     {

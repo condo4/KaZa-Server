@@ -53,18 +53,11 @@ void KaZaConnection::askPosition()
 
 void KaZaConnection::sendObjectsList()
 {
-    // Build QMap from ALL objects in KaZaManager (not just subscribed ones)
     QHash<QString, std::pair<QVariant, QString>> objects;
-    QStringList objectKeys = KaZaManager::getObjectKeys();
-
-    for (const QString &key : objectKeys) {
-        KaZaObject *obj = KaZaManager::getObject(key);
-        if (obj) {
-            objects[key] = std::pair<QVariant, QString>(obj->value(), obj->unit());
-        }
+    for (KaZaObject *obj : KaZaManager::objects()) {
+        if (obj)
+            objects[obj->name()] = std::pair<QVariant, QString>(obj->value(), obj->unit());
     }
-
-    // Send compressed objects list via protocol
     m_protocol.sendFrameObjectsList(objects);
 }
 
@@ -79,13 +72,10 @@ void KaZaConnection::enableDMZ()
     m_dmzEnabled = true;
 
     // Subscribe to all existing objects
-    QStringList objectKeys = KaZaManager::getObjectKeys();
     quint16 index = 0;
-    for (const QString &name : objectKeys) {
-        KaZaObject *obj = KaZaManager::getObject(name);
-        if (obj && !m_obj.contains(name)) {
+    for (KaZaObject *obj : KaZaManager::objects()) {
+        if (obj && !m_obj.contains(obj->name()))
             subscribeToObject(obj, index++, false);
-        }
     }
 
     qInfo().noquote().nospace() << "SSL " << id() << ": DMZ enabled - subscribed to " << m_obj.size() << " objects";
