@@ -379,7 +379,7 @@ void KaZaConnection::_processFrameSocketConnect(uint16_t socketId, const QString
         qWarning() << "Socket " << socketId << "allready used";
         return;
     }
-    m_sockets[socketId] = new QTcpSocket();
+    m_sockets[socketId] = new QTcpSocket(this);
     QObject::connect(m_sockets[socketId], &QTcpSocket::readyRead, this, &KaZaConnection::_sockReadyRead);
     QObject::connect(m_sockets[socketId], &QTcpSocket::stateChanged, this, &KaZaConnection::_sockStateChange);
 
