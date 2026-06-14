@@ -350,7 +350,7 @@ void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
         while(q.next())
         {
             QList<QVariant> data;
-            for(int i = 0; i < q.record().count(); i++)
+            for(int i = 0; i < q.record().size(); i++)
             {
                 if(first)
                 {
