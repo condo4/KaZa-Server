@@ -54,7 +54,7 @@ void KaZaConnection::askPosition()
 void KaZaConnection::sendObjectsList()
 {
     // Build QMap from ALL objects in KaZaManager (not just subscribed ones)
-    QMap<QString, std::pair<QVariant, QString>> objects;
+    QHash<QString, std::pair<QVariant, QString>> objects;
     QStringList objectKeys = KaZaManager::getObjectKeys();
 
     for (const QString &key : objectKeys) {

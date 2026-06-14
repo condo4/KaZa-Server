@@ -6,6 +6,7 @@
 #include <QQmlApplicationEngine>
 #include <QSslServer>
 #include <QSqlDatabase>
+#include <QHash>
 
 // #define DEBUG_KNX
 // #define DEBUG_CONNECTION
@@ -32,7 +33,7 @@ class KaZaManager : public QObject
     bool m_databaseReady {false};
     bool m_initialized {false};
     QSqlDatabase m_database;
-    QMap<QString, KaZaUser*> m_users;
+    QHash<QString, KaZaUser*> m_users;
 
     static KaZaManager *m_instance;
 

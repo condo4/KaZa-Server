@@ -106,12 +106,11 @@ bool matchesFilter(const QString &name, const QString &filter)
     return true;
 }
 
-void printObjects(const QMap<QString, std::pair<QVariant, QString>> &objects, const QString &filterPattern, const QString &specificObject)
+void printObjects(const QHash<QString, std::pair<QVariant, QString>> &objects, const QString &filterPattern, const QString &specificObject)
 {
     QTextStream out(stdout);
 
     if (!specificObject.isEmpty()) {
-        // Print specific object
         if (objects.contains(specificObject)) {
             const auto &data = objects[specificObject];
             QString line = specificObject.leftJustified(80, ' ');
@@ -120,24 +119,13 @@ void printObjects(const QMap<QString, std::pair<QVariant, QString>> &objects, co
             line.append(data.second);
             out << line << Qt::endl;
         }
-    } else if (!filterPattern.isEmpty()) {
-        // Print filtered objects
-        for (auto it = objects.constBegin(); it != objects.constEnd(); ++it) {
-            const QString &name = it.key();
-            if (matchesFilter(name, filterPattern)) {
-                const auto &data = it.value();
-                QString line = name.leftJustified(80, ' ');
-                line.append(data.first.toString());
-                line.append(" ");
-                line.append(data.second);
-                out << line << Qt::endl;
-            }
-        }
     } else {
-        // Print all objects
-        for (auto it = objects.constBegin(); it != objects.constEnd(); ++it) {
-            const QString &name = it.key();
-            const auto &data = it.value();
+        QStringList keys = objects.keys();
+        std::sort(keys.begin(), keys.end());
+        for (const QString &name : std::as_const(keys)) {
+            if (!filterPattern.isEmpty() && !matchesFilter(name, filterPattern))
+                continue;
+            const auto &data = objects[name];
             QString line = name.leftJustified(80, ' ');
             line.append(data.first.toString());
             line.append(" ");
@@ -316,7 +304,7 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
     // State tracking
     bool versionNegotiated = false;
     bool objectsListReceived = false;
-    QMap<QString, std::pair<QVariant, QString>> objectsList;
+    QHash<QString, std::pair<QVariant, QString>> objectsList;
     int exitCode = -1;
 
     // Connect protocol signals
@@ -326,7 +314,7 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
     });
 
     QObject::connect(&protocol, &KaZaProtocol::frameObjectsList,
-                     [&](const QMap<QString, std::pair<QVariant, QString>> &objects) {
+                     [&](const QHash<QString, std::pair<QVariant, QString>> &objects) {
         objectsListReceived = true;
         objectsList = objects;
 
