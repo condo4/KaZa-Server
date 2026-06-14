@@ -281,7 +281,7 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
             m_gpsPosition.setAltitude(altitude);
 
             // Update user position
-            KaZaUser *user = KaZaManager::getUser(m_user);
+            KaZaUser *user = KaZaManager::findUser(m_user);
             if (user) {
                 user->setPosition(latitude, longitude, altitude, accuracy);
             }

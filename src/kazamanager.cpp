@@ -395,7 +395,7 @@ void KaZaManager::sendObjectsList()
     }
 }
 
-KaZaUser* KaZaManager::getUser(const QString &username)
+KaZaUser* KaZaManager::findUser(const QString &username)
 {
     if(!m_instance)
     {
