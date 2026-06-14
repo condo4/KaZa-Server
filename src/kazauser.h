@@ -11,6 +11,7 @@ class KaZaObject;
 class KaZaUser : public QObject
 {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(KaZaUser)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(double latitude READ latitude NOTIFY positionChanged)
