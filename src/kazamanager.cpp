@@ -188,6 +188,8 @@ void KaZaManager::registerObject(KaZaObject* obj) {
         return;
     }
     m_instance->m_objects.append(obj);
+    if (m_instance->m_objects.size() > 10000)
+        qWarning() << "KaZaManager: m_objects exceeded 10000 entries — possible runaway registration";
     emit m_instance->objectAdded();
 
     // Subscribe DMZ connections to new object
@@ -207,6 +209,8 @@ void KaZaManager::registerAlarm(KzAlarm *obj)
         return;
     }
     m_instance->m_alarms.append(obj);
+    if (m_instance->m_alarms.size() > 1000)
+        qWarning() << "KaZaManager: m_alarms exceeded 1000 entries — possible runaway registration";
     emit m_instance->alarmAdded();
 }
 
@@ -437,6 +441,8 @@ void KaZaManager::_pendingConnectionAvailable() {
         QObject::connect(connection, &KaZaConnection::disconnectFromHost, this, &KaZaManager::_disconnection);
         QObject::connect(connection, &KaZaConnection::userAuthenticated, this, &KaZaManager::_userAuthenticated);
         m_clients.append(connection);
+        if (m_clients.size() > 1000)
+            qWarning() << "KaZaManager: m_clients exceeded 1000 — possible connection leak";
     }
     else
     {
@@ -508,6 +514,8 @@ void KaZaManager::_pendingRemoteConnectionAvailable() {
         KaZaRemoteConnection *connection = new KaZaRemoteConnection(socket, this);
         QObject::connect(connection, &KaZaRemoteConnection::disconnectFromHost, this, &KaZaManager::_remoteDisconnection);
         m_remoteclients.append(connection);
+        if (m_remoteclients.size() > 100)
+            qWarning() << "KaZaManager: m_remoteclients exceeded 100 — possible connection leak";
     }
     else
     {

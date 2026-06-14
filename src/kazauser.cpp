@@ -79,6 +79,8 @@ void KaZaUser::addConnection(KaZaConnection *connection)
     if (!m_connections.contains(connection)) {
         bool wasConnected = connected();
         m_connections.append(connection);
+        if (m_connections.size() > 100)
+            qWarning() << "KaZaUser" << m_name << ": exceeded 100 simultaneous connections — possible leak";
         if (!wasConnected) {
             emit connectedChanged(true);
         }
