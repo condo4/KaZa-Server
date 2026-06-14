@@ -53,7 +53,7 @@ public:
 signals:
     void nameChanged();
     void connectedChanged(bool connected);
-    void positionChanged();
+    void positionChanged(double latitude, double longitude, double altitude, double accuracy);
 };
 
 #endif // KAZAUSER_H

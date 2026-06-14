@@ -119,6 +119,6 @@ void KaZaUser::setPosition(double latitude, double longitude, double altitude, d
             m_accuracyObject->setValue(m_accuracy);
         }
 
-        emit positionChanged();
+        emit positionChanged(m_latitude, m_longitude, m_altitude, m_accuracy);
     }
 }
