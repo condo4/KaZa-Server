@@ -52,6 +52,7 @@ public:
     static void sendNotify(QString text);
     static void askPosition(QString param);
     static void sendObjectsList();
+    static KaZaUser* getUser(const QString &username);
 
 public slots:
     bool runDbQuery(const QString &query);

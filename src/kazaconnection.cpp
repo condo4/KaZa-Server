@@ -2,6 +2,7 @@
 #include "kazamanager.h"
 #include "kazaobject.h"
 #include "kzalarm.h"
+#include "kazauser.h"
 #include <QTcpSocket>
 #include <QFile>
 #include <QTimer>
@@ -53,13 +54,13 @@ void KaZaConnection::askPosition()
 void KaZaConnection::sendObjectsList()
 {
     // Build QMap from ALL objects in KaZaManager (not just subscribed ones)
-    QMap<QString, QPair<QVariant, QString>> objects;
+    QMap<QString, std::pair<QVariant, QString>> objects;
     QStringList objectKeys = KaZaManager::getObjectKeys();
 
     for (const QString &key : objectKeys) {
         KaZaObject *obj = KaZaManager::getObject(key);
         if (obj) {
-            objects[key] = QPair<QVariant, QString>(obj->value(), obj->unit());
+            objects[key] = std::pair<QVariant, QString>(obj->value(), obj->unit());
         }
     }
 
@@ -279,9 +280,11 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
             m_gpsPosition.setLongitude(longitude);
             m_gpsPosition.setAltitude(altitude);
 
-            qInfo().noquote().nospace() << idlog() << ": Position: "
-                                       << "Lat: " << latitude << ", Lon: " << longitude
-                                       << ", Alt: " << altitude << ", Provider: " << m_gpsProvider;
+            // Update user position
+            KaZaUser *user = KaZaManager::getUser(m_user);
+            if (user) {
+                user->setPosition(latitude, longitude, altitude, accuracy);
+            }
         }
         else
         {

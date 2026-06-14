@@ -106,7 +106,7 @@ bool matchesFilter(const QString &name, const QString &filter)
     return true;
 }
 
-void printObjects(const QMap<QString, QPair<QVariant, QString>> &objects, const QString &filterPattern, const QString &specificObject)
+void printObjects(const QMap<QString, std::pair<QVariant, QString>> &objects, const QString &filterPattern, const QString &specificObject)
 {
     QTextStream out(stdout);
 
@@ -316,7 +316,7 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
     // State tracking
     bool versionNegotiated = false;
     bool objectsListReceived = false;
-    QMap<QString, QPair<QVariant, QString>> objectsList;
+    QMap<QString, std::pair<QVariant, QString>> objectsList;
     int exitCode = -1;
 
     // Connect protocol signals
@@ -326,7 +326,7 @@ int sslPortMode(const QString &filterPattern, const QString &specificObject)
     });
 
     QObject::connect(&protocol, &KaZaProtocol::frameObjectsList,
-                     [&](const QMap<QString, QPair<QVariant, QString>> &objects) {
+                     [&](const QMap<QString, std::pair<QVariant, QString>> &objects) {
         objectsListReceived = true;
         objectsList = objects;
 

@@ -391,6 +391,16 @@ void KaZaManager::sendObjectsList()
     }
 }
 
+KaZaUser* KaZaManager::getUser(const QString &username)
+{
+    if(!m_instance)
+    {
+        qWarning() << "No KaZaManager object";
+        return nullptr;
+    }
+    return m_instance->m_users.value(username, nullptr);
+}
+
 bool KaZaManager::runDbQuery(const QString &query)
 {
     if(!m_databaseReady) return false;
