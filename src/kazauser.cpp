@@ -98,8 +98,8 @@ void KaZaUser::removeConnection(KaZaConnection *connection)
 
 void KaZaUser::setPosition(double latitude, double longitude, double altitude, double accuracy)
 {
-    if (m_latitude != latitude || m_longitude != longitude ||
-        m_altitude != altitude || m_accuracy != accuracy) {
+    if (qAbs(m_latitude - latitude) > 1e-7 || qAbs(m_longitude - longitude) > 1e-7 ||
+        qAbs(m_altitude - altitude) > 1e-2 || qAbs(m_accuracy - accuracy) > 1e-2) {
         m_latitude = latitude;
         m_longitude = longitude;
         m_altitude = altitude;
