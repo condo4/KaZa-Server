@@ -23,52 +23,31 @@ KaZaUser::KaZaUser(const QString &name, QObject *parent)
     setName(name);
 }
 
+void KaZaUser::ensureObject(KaZaObject *&ptr, const QString &fullName, const QVariant &initialValue)
+{
+    if (!ptr) {
+        ptr = new KaZaObject(fullName, this);
+        ptr->setValue(initialValue);
+    } else {
+        ptr->setName(fullName);
+    }
+}
+
 void KaZaUser::setName(const QString &name)
 {
     if (m_name != name) {
         m_name = name;
         QString baseName = "user." + m_name.toLower();
 
-        // Create or update KaZaObject for connected property
-        if (!m_connectedObject) {
-            m_connectedObject = new KaZaObject(baseName + ".connected", this);
-            m_connectedObject->setValue(connected());
+        bool firstTime = !m_connectedObject;
+        ensureObject(m_connectedObject, baseName + ".connected", connected());
+        if (firstTime)
             QObject::connect(this, &KaZaUser::connectedChanged, m_connectedObject, &KaZaObject::setValue);
-        } else {
-            m_connectedObject->setName(baseName + ".connected");
-        }
 
-        // Create or update KaZaObject for latitude
-        if (!m_latitudeObject) {
-            m_latitudeObject = new KaZaObject(baseName + ".latitude", this);
-            m_latitudeObject->setValue(m_latitude);
-        } else {
-            m_latitudeObject->setName(baseName + ".latitude");
-        }
-
-        // Create or update KaZaObject for longitude
-        if (!m_longitudeObject) {
-            m_longitudeObject = new KaZaObject(baseName + ".longitude", this);
-            m_longitudeObject->setValue(m_longitude);
-        } else {
-            m_longitudeObject->setName(baseName + ".longitude");
-        }
-
-        // Create or update KaZaObject for altitude
-        if (!m_altitudeObject) {
-            m_altitudeObject = new KaZaObject(baseName + ".altitude", this);
-            m_altitudeObject->setValue(m_altitude);
-        } else {
-            m_altitudeObject->setName(baseName + ".altitude");
-        }
-
-        // Create or update KaZaObject for accuracy
-        if (!m_accuracyObject) {
-            m_accuracyObject = new KaZaObject(baseName + ".accuracy", this);
-            m_accuracyObject->setValue(m_accuracy);
-        } else {
-            m_accuracyObject->setName(baseName + ".accuracy");
-        }
+        ensureObject(m_latitudeObject,  baseName + ".latitude",  m_latitude);
+        ensureObject(m_longitudeObject, baseName + ".longitude", m_longitude);
+        ensureObject(m_altitudeObject,  baseName + ".altitude",  m_altitude);
+        ensureObject(m_accuracyObject,  baseName + ".accuracy",  m_accuracy);
 
         emit nameChanged();
     }

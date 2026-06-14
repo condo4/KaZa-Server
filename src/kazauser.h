@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QList>
+#include <QVariant>
 
 class KaZaConnection;
 class KaZaObject;
@@ -47,6 +48,9 @@ public:
 
     void addConnection(KaZaConnection *connection);
     void removeConnection(KaZaConnection *connection);
+
+private:
+    void ensureObject(KaZaObject *&ptr, const QString &fullName, const QVariant &initialValue);
 
     const QList<KaZaConnection*>& connections() const { return m_connections; }
 
