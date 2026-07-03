@@ -50,10 +50,10 @@ public:
     void addConnection(KaZaConnection *connection);
     void removeConnection(KaZaConnection *connection);
 
+    const QList<KaZaConnection*>& connections() const { return m_connections; }
 private:
     void ensureObject(KaZaObject *&ptr, const QString &fullName, const QVariant &initialValue);
 
-    const QList<KaZaConnection*>& connections() const { return m_connections; }
 
 signals:
     void nameChanged();

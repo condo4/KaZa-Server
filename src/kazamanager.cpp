@@ -18,6 +18,7 @@
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QDateTime>
 
 KaZaManager *KaZaManager::m_instance = {nullptr};
 
@@ -284,11 +285,13 @@ QString KaZaManager::appChecksum() {
         return QString();
     }
     QFile f(m_instance->m_appFilename);
-    if (f.open(QFile::ReadOnly)) {
-        QCryptographicHash hash(QCryptographicHash::Algorithm::Md5);
-        if (hash.addData(&f)) {
-            appChecksum = hash.result().toBase64();
-        }
+    if (!f.open(QFile::ReadOnly)) {
+        qWarning() << "appChecksum: cannot open" << m_instance->m_appFilename << "-" << f.errorString();
+        return appChecksum;
+    }
+    QCryptographicHash hash(QCryptographicHash::Algorithm::Md5);
+    if (hash.addData(&f)) {
+        appChecksum = hash.result().toBase64();
     }
     return appChecksum;
 }
@@ -406,7 +409,7 @@ void KaZaManager::sendObjectsList()
     }
 }
 
-KaZaUser* KaZaManager::findUser(const QString &username)
+QPointer<KaZaUser> KaZaManager::findUser(const QString &username)
 {
     if(!m_instance)
     {
@@ -442,6 +445,42 @@ bool KaZaManager::runDbQuery(const QString &query)
 void KaZaManager::notify(QString message)
 {
     sendNotify(message);
+}
+
+void KaZaManager::logTemperature(const QVariant &rawid, const QString &name, const QVariant &value)
+{
+    if (!m_databaseReady) return;
+
+    if (!rawid.isValid() || rawid.isNull()) {
+        qWarning() << "log_temperature: rawid vide pour l'objet" << name;
+        return;
+    }
+
+    if (!m_database.isOpen()) {
+        if (!m_database.open(m_settings.value("database/username").toString(),
+                             m_settings.value("database/password").toString())) {
+            qWarning() << "log_temperature: database open error:" << m_database.lastError();
+            return;
+        }
+    }
+
+    QSqlQuery q(m_database);
+
+    q.prepare("INSERT INTO kaza_objects (rowid, name) VALUES (:rowid, :name) ON CONFLICT DO NOTHING");
+    q.bindValue(":rowid", rawid);
+    q.bindValue(":name", name);
+    if (!q.exec()) {
+        qWarning() << "log_temperature: kaza_objects insert failed:" << q.lastError().text();
+        return;
+    }
+
+    QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+    q.prepare("INSERT INTO temperature_raw (object_id, ts, value) VALUES (:id, :ts, :value)");
+    q.bindValue(":id", rawid);
+    q.bindValue(":ts", now);
+    q.bindValue(":value", value);
+    if (!q.exec())
+        qWarning() << "logTemperature: temperature_raw insert failed:" << q.lastError().text();
 }
 
 void KaZaManager::_pendingConnectionAvailable() {
@@ -506,7 +545,13 @@ void KaZaManager::_disconnection() {
         if(user)
         {
             user->removeConnection(connection);
-            qInfo() << "User" << username << "now has" << user->connections().size() << "connection(s)";
+            if (user->connections().isEmpty()) {
+                m_users.remove(username);
+                user->deleteLater();
+                qInfo() << "User" << username << "removed (no remaining connections)";
+            } else {
+                qInfo() << "User" << username << "now has" << user->connections().size() << "connection(s)";
+            }
         }
     }
 

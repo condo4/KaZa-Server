@@ -136,7 +136,7 @@ void printObjects(const QHash<QString, std::pair<QVariant, QString>> &objects, c
 }
 
 // Control port mode (simple SSL, text-based protocol)
-int controlPortMode(const QString &filterPattern, const QString &specificObject)
+int controlPortMode(const QString &filterPattern, const QString &specificObject, bool verbose)
 {
     QSslSocket socket;
     QSettings settings("/etc/kazad.conf", QSettings::IniFormat);
@@ -172,11 +172,11 @@ int controlPortMode(const QString &filterPattern, const QString &specificObject)
 
     // Send command based on mode
     if (!specificObject.isEmpty()) {
-        socket.write("obj? ");
+        socket.write(verbose ? "objv? " : "obj? ");
         socket.write(specificObject.toUtf8());
         socket.write("\n");
     } else {
-        socket.write("obj?\n");
+        socket.write(verbose ? "objv?\n" : "obj?\n");
     }
 
     if (!socket.waitForBytesWritten(3000)) {
@@ -205,8 +205,10 @@ int controlPortMode(const QString &filterPattern, const QString &specificObject)
                 QTextStream out(stdout);
                 if (!filterPattern.isEmpty()) {
                     for (const QString &l : lines) {
-                        QString objectId = l.split(QRegularExpression("\\s+")).first();
-                        if (matchesFilter(objectId, filterPattern)) {
+                        QStringList parts = l.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+                        // With -v, rawid is first column and name is second
+                        QString objectName = (verbose && parts.size() > 1) ? parts[1] : parts[0];
+                        if (matchesFilter(objectName, filterPattern)) {
                             out << l << Qt::endl;
                         }
                     }
@@ -227,7 +229,7 @@ int controlPortMode(const QString &filterPattern, const QString &specificObject)
 }
 
 // Main SSL port mode (with client certificates and binary protocol)
-int sslPortMode(const QString &filterPattern, const QString &specificObject)
+int sslPortMode(const QString &filterPattern, const QString &specificObject, bool verbose)
 {
     QSslSocket socket;
 
@@ -376,6 +378,7 @@ int main(int argc, char *argv[])
     // Parse arguments
     bool useSslPort = false;
     bool useFilter = false;
+    bool verbose = false;
     QString filterPattern;
     QString specificObject;
 
@@ -383,6 +386,11 @@ int main(int argc, char *argv[])
     if (argc > 1 && QString::fromUtf8(argv[1]) == "--ssl") {
         useSslPort = true;
         argStart = 2;
+    }
+
+    if (argc > argStart && QString::fromUtf8(argv[argStart]) == "-v") {
+        verbose = true;
+        argStart++;
     }
 
     if (argc > argStart) {
@@ -397,8 +405,8 @@ int main(int argc, char *argv[])
 
     // Choose mode
     if (useSslPort) {
-        return sslPortMode(filterPattern, specificObject);
+        return sslPortMode(filterPattern, specificObject, verbose);
     } else {
-        return controlPortMode(filterPattern, specificObject);
+        return controlPortMode(filterPattern, specificObject, verbose);
     }
 }

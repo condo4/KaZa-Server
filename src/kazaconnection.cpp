@@ -36,7 +36,7 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketData, this, &KaZaConnection::_processFrameSocketData);
 }
 
-quint16 KaZaConnection::id() {
+quint16 KaZaConnection::id() const {
     return m_protocol.peerPort();
 }
 
@@ -93,6 +93,10 @@ void KaZaConnection::subscribeToObject(KaZaObject *obj, quint16 index, bool send
     m_obj[name] = obj;
     m_ids[name] = index;
     QObject::connect(obj, &KaZaObject::valueChanged, this, &KaZaConnection::_objectChanged);
+    QObject::connect(obj, &QObject::destroyed, this, [this, name](QObject *) {
+        m_obj.remove(name);
+        m_ids.remove(name);
+    });
 
     // Only send OBJDESC if client hasn't already received the objects list
     // (OBJLIST already contains name, value, and unit for all objects)
@@ -135,9 +139,9 @@ void KaZaConnection::_processVersionNegotiated(QString &username, QString &devic
     m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
 
     // Send all registered objects to client
-    for(const QString &name : m_obj.keys())
+    for (auto it = m_obj.constBegin(); it != m_obj.constEnd(); ++it)
     {
-        m_protocol.sendObject(m_ids[name], m_obj[name]->value(), false);
+        m_protocol.sendObject(m_ids.value(it.key()), it.value()->value(), false);
     }
 }
 
@@ -188,6 +192,10 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
 
     if(c[0] == "OBJ")
     {
+        if(c.size() < 3) {
+            qWarning().noquote() << idlog() << ": Malformed OBJ command:" << command;
+            return;
+        }
         // Register object for connection
         QString &name = c[1];
         quint16 index = c[2].toInt();
@@ -209,16 +217,20 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
                 return;
             }
         }
-        m_protocol.sendCommand("OBJDESC:" + name + ":" + m_obj[name]->unit());
-        if(m_obj[name]->value().isValid())
+        m_protocol.sendCommand("OBJDESC:" + name + ":" + m_obj.value(name)->unit());
+        if(m_obj.value(name)->value().isValid())
         {
-            m_protocol.sendObject(m_ids[name], m_obj[name]->value(), false);
+            m_protocol.sendObject(m_ids.value(name), m_obj.value(name)->value(), false);
         }
         return;
     }
 
     if(c[0] == "ALARMS")
     {
+        if(c.size() < 2) {
+            qWarning().noquote() << idlog() << ": Malformed ALARMS command:" << command;
+            return;
+        }
         m_user = c[1];
         QString result;
         for(const KzAlarm *alarm: KaZaManager::alarms())
@@ -307,10 +319,11 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
 
 void KaZaConnection::_objectChanged() {
     KaZaObject *obj = qobject_cast<KaZaObject*>(QObject::sender());
+    if (!obj) return;
 #ifdef DEBUG_CONNECTION
     qDebug() << "_objectChanged " << obj->name() << obj->value();
 #endif
-    m_protocol.sendObject(m_ids[obj->name()], obj->value(), false);
+    m_protocol.sendObject(m_ids.value(obj->name()), obj->value(), false);
 }
 
 void KaZaConnection::_disconnectFromHost()
@@ -359,7 +372,7 @@ void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
         while(q.next())
         {
             QList<QVariant> data;
-            for(int i = 0; i < q.record().size(); i++)
+            for(int i = 0; i < q.record().count(); i++)
             {
                 if(first)
                 {

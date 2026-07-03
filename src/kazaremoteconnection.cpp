@@ -64,6 +64,58 @@ void KaZaRemoteConnection::_processPacket(const QByteArray &packet) {
     QString msg = cmd;
     cmd = cmd.toLower();
 
+    if(cmd.startsWith("objv?"))
+    {
+        QStringList args = cmd.split(" ");
+        if(args.size() > 1)
+        {
+            QString key = args[1];
+            KaZaObject *obj = KaZaManager::getObject(key);
+            if(obj)
+            {
+                QString rawid = obj->rawid().toString();
+                if(rawid.isEmpty()) rawid = "-";
+                QString line = rawid.leftJustified(10, ' ');
+                line.append(key.leftJustified(80, ' '));
+                line.append(obj->value().toString());
+                line.append(" ");
+                line.append(obj->unit());
+                m_socket->write(line.toUtf8());
+                m_socket->write("\n");
+            }
+            else
+            {
+                qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Object not found: " << key;
+            }
+            m_socket->write("\n");
+            return;
+        }
+
+        QStringList lst = KaZaManager::getObjectKeys();
+        for(QString &key: lst)
+        {
+            KaZaObject *obj = KaZaManager::getObject(key);
+            if(obj)
+            {
+                QString rawid = obj->rawid().toString();
+                if(rawid.isEmpty()) rawid = "-";
+                QString line = rawid.leftJustified(10, ' ');
+                line.append(key.leftJustified(80, ' '));
+                line.append(obj->value().toString());
+                line.append(" ");
+                line.append(obj->unit());
+                m_socket->write(line.toUtf8());
+                m_socket->write("\n");
+            }
+            else
+            {
+                qWarning().noquote().nospace() << "[CTRL][" << id() << "]: Object in key list but not found: " << key;
+            }
+        }
+        m_socket->write("\n");
+        return;
+    }
+
     if(cmd.startsWith("obj?"))
     {
         QStringList args = cmd.split(" ");

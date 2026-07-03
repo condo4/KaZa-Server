@@ -2,6 +2,7 @@
 #define KAZAMANAGER_H
 
 #include <QObject>
+#include <QPointer>
 #include <QSettings>
 #include <QQmlApplicationEngine>
 #include <QSslServer>
@@ -54,11 +55,12 @@ public:
     static void sendNotify(QString text);
     static void askPosition(QString param);
     static void sendObjectsList();
-    static KaZaUser* findUser(const QString &username);
+    static QPointer<KaZaUser> findUser(const QString &username);
 
 public slots:
     bool runDbQuery(const QString &query);
     void notify(QString message);
+    void logTemperature(const QVariant &rawid, const QString &name, const QVariant &value);
 
 private:
     bool ensureCertificatesExist();

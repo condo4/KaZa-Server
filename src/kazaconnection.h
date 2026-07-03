@@ -30,7 +30,7 @@ class KaZaConnection : public QObject
 
 public:
     explicit KaZaConnection(QTcpSocket *socket, QObject *parent = nullptr);
-    quint16 id();
+    quint16 id() const;
     void sendNotify(QString text);
     void askPosition();
     void sendObjectsList();
