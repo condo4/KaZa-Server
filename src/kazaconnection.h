@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QMap>
+#include <QDateTime>
 #include <QVariant>
 #include <QAbstractSocket>
 #include <QGeoCoordinate>
@@ -55,6 +56,8 @@ private slots:
     void _processFrameSystem(const QString &command);
     void _processFrameObject(quint16 objectId, QVariant value, bool confirm);
     void _processFrameDbQuery(uint32_t queryId, QString query);
+    void _processFrameHistory(uint32_t queryId, QString domain, QString object,
+                               QDateTime start, QDateTime end, quint8 step);
     void _processFrameSocketConnect(uint16_t socketId, const QString hostname, uint16_t port);
     void _processFrameSocketData(uint16_t socketId, QByteArray data);
     void _sockReadyRead();

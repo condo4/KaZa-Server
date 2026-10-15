@@ -9,6 +9,7 @@
 #include "internalobject.h"
 #include "kazacertificategenerator.h"
 #include "kazauser.h"
+#include "historydomains.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -449,17 +450,27 @@ void KaZaManager::notify(QString message)
 
 void KaZaManager::logTemperature(const QVariant &rawid, const QString &name, const QVariant &value)
 {
+    logMeasurement(QStringLiteral("temperature"), rawid, name, value);
+}
+
+void KaZaManager::logMeasurement(const QString &domain, const QVariant &rawid, const QString &name, const QVariant &value)
+{
     if (!m_databaseReady) return;
 
+    if (!kaZaHistoryDomains().contains(domain)) {
+        qWarning() << "logMeasurement: unknown domain" << domain << "for" << name;
+        return;
+    }
+
     if (!rawid.isValid() || rawid.isNull()) {
-        qWarning() << "log_temperature: rawid vide pour l'objet" << name;
+        qWarning() << "logMeasurement: rawid vide pour l'objet" << name;
         return;
     }
 
     if (!m_database.isOpen()) {
         if (!m_database.open(m_settings.value("database/username").toString(),
                              m_settings.value("database/password").toString())) {
-            qWarning() << "log_temperature: database open error:" << m_database.lastError();
+            qWarning() << "logMeasurement: database open error:" << m_database.lastError();
             return;
         }
     }
@@ -470,17 +481,17 @@ void KaZaManager::logTemperature(const QVariant &rawid, const QString &name, con
     q.bindValue(":rowid", rawid);
     q.bindValue(":name", name);
     if (!q.exec()) {
-        qWarning() << "log_temperature: kaza_objects insert failed:" << q.lastError().text();
+        qWarning() << "logMeasurement: kaza_objects insert failed:" << q.lastError().text();
         return;
     }
 
     QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-    q.prepare("INSERT INTO temperature_raw (object_id, ts, value) VALUES (:id, :ts, :value)");
+    q.prepare(QStringLiteral("INSERT INTO %1_raw (object_id, ts, value) VALUES (:id, :ts, :value)").arg(domain));
     q.bindValue(":id", rawid);
     q.bindValue(":ts", now);
     q.bindValue(":value", value);
     if (!q.exec())
-        qWarning() << "logTemperature: temperature_raw insert failed:" << q.lastError().text();
+        qWarning().noquote() << "logMeasurement: " + domain + "_raw insert failed:" << q.lastError().text();
 }
 
 void KaZaManager::_pendingConnectionAvailable() {

@@ -3,12 +3,14 @@
 #include "kazaobject.h"
 #include "kzalarm.h"
 #include "kazauser.h"
+#include "historydomains.h"
 #include <QTcpSocket>
 #include <QFile>
 #include <QTimer>
 #include <QBuffer>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QSqlError>
 
 
 QString KaZaConnection::user() const
@@ -32,6 +34,7 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::frameCommand, this, &KaZaConnection::_processFrameSystem);
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
     QObject::connect(&m_protocol, &KaZaProtocol::frameDbQuery, this, &KaZaConnection::_processFrameDbQuery);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameHistory, this, &KaZaConnection::_processFrameHistory);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketConnect, this, &KaZaConnection::_processFrameSocketConnect);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketData, this, &KaZaConnection::_processFrameSocketData);
 }
@@ -392,6 +395,102 @@ void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
     {
         qWarning() << "QUERY FAIL " + query;
     }
+}
+
+void KaZaConnection::_processFrameHistory(uint32_t queryId, QString domain, QString object,
+                                           QDateTime start, QDateTime end, quint8 step)
+{
+    // Version negotiation is mandatory - reject if not negotiated
+    if (!m_valid) {
+        qWarning().noquote().nospace() << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+
+    if (!kaZaHistoryDomains().contains(domain)) {
+        qWarning().noquote() << idlog() << ": Unknown history domain:" << domain;
+        m_protocol.sendHistoryResult(queryId, false, "Unknown domain: " + domain, {}, {}, {}, {});
+        return;
+    }
+
+    QSqlQuery idQuery;
+    idQuery.prepare("SELECT rowid FROM kaza_objects WHERE name = :name");
+    idQuery.bindValue(":name", object);
+    if (!idQuery.exec() || !idQuery.next()) {
+        qWarning().noquote() << idlog() << ": Unknown history object:" << object;
+        m_protocol.sendHistoryResult(queryId, false, "Unknown object: " + object, {}, {}, {}, {});
+        return;
+    }
+    QVariant objectId = idQuery.value(0);
+
+    // domain is whitelist-checked above, so it is safe to interpolate into table names here.
+    QString sql;
+    switch (step) {
+    case KaZaProtocol::HistoryStepHour:
+        sql = QStringLiteral(
+            "SELECT ts, MIN(mn) AS mn, SUM(av * cnt) / SUM(cnt) AS av, MAX(mx) AS mx FROM ("
+            "  SELECT date_trunc('hour', ts) AS ts, MIN(value) AS mn, AVG(value) AS av, MAX(value) AS mx, COUNT(*) AS cnt"
+            "  FROM %1_raw WHERE object_id = :id AND ts >= :start AND ts < :end GROUP BY 1"
+            "  UNION ALL"
+            "  SELECT ts, min AS mn, avg AS av, max AS mx, count AS cnt"
+            "  FROM %1_hourly WHERE object_id = :id AND ts >= :start AND ts < :end"
+            ") u GROUP BY ts ORDER BY ts").arg(domain);
+        break;
+    case KaZaProtocol::HistoryStepDay:
+        sql = QStringLiteral(
+            "SELECT ts, MIN(mn) AS mn, SUM(av * cnt) / SUM(cnt) AS av, MAX(mx) AS mx FROM ("
+            "  SELECT date_trunc('day', ts) AS ts, min AS mn, avg AS av, max AS mx, count AS cnt"
+            "  FROM %1_hourly WHERE object_id = :id AND ts >= :start AND ts < :end"
+            "  UNION ALL"
+            "  SELECT ts::timestamp AS ts, min AS mn, avg AS av, max AS mx, count AS cnt"
+            "  FROM %1_daily WHERE object_id = :id AND ts >= :start AND ts < :end"
+            ") u GROUP BY ts ORDER BY ts").arg(domain);
+        break;
+    case KaZaProtocol::HistoryStepWeek:
+        sql = QStringLiteral(
+            "SELECT date_trunc('week', ts) AS ts, MIN(min) AS mn, SUM(avg * count) / SUM(count) AS av, MAX(max) AS mx"
+            " FROM %1_daily WHERE object_id = :id AND ts >= :start AND ts < :end GROUP BY 1 ORDER BY 1").arg(domain);
+        break;
+    case KaZaProtocol::HistoryStepMonth:
+        sql = QStringLiteral(
+            "SELECT date_trunc('month', ts) AS ts, MIN(min) AS mn, SUM(avg * count) / SUM(count) AS av, MAX(max) AS mx"
+            " FROM %1_daily WHERE object_id = :id AND ts >= :start AND ts < :end GROUP BY 1 ORDER BY 1").arg(domain);
+        break;
+    case KaZaProtocol::HistoryStepYear:
+        sql = QStringLiteral(
+            "SELECT date_trunc('year', ts) AS ts, MIN(min) AS mn, SUM(avg * count) / SUM(count) AS av, MAX(max) AS mx"
+            " FROM %1_daily WHERE object_id = :id AND ts >= :start AND ts < :end GROUP BY 1 ORDER BY 1").arg(domain);
+        break;
+    default:
+        qWarning().noquote() << idlog() << ": Unknown history step:" << step;
+        m_protocol.sendHistoryResult(queryId, false, "Unknown step", {}, {}, {}, {});
+        return;
+    }
+
+    QSqlQuery q;
+    q.prepare(sql);
+    q.bindValue(":id", objectId);
+    q.bindValue(":start", start);
+    q.bindValue(":end", end);
+
+    if (!q.exec()) {
+        qWarning().noquote() << idlog() << ": History query failed:" << q.lastError().text();
+        m_protocol.sendHistoryResult(queryId, false, q.lastError().text(), {}, {}, {}, {});
+        return;
+    }
+
+    QList<QDateTime> ts;
+    QList<double> mn;
+    QList<double> av;
+    QList<double> mx;
+    while (q.next()) {
+        ts.append(q.value(0).toDateTime());
+        mn.append(q.value(1).toDouble());
+        av.append(q.value(2).toDouble());
+        mx.append(q.value(3).toDouble());
+    }
+
+    m_protocol.sendHistoryResult(queryId, true, QString(), ts, mn, av, mx);
 }
 
 void KaZaConnection::_processFrameSocketConnect(uint16_t socketId, const QString hostname, uint16_t port)

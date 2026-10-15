@@ -61,6 +61,7 @@ public slots:
     bool runDbQuery(const QString &query);
     void notify(QString message);
     void logTemperature(const QVariant &rawid, const QString &name, const QVariant &value);
+    void logMeasurement(const QString &domain, const QVariant &rawid, const QString &name, const QVariant &value);
 
 private:
     bool ensureCertificatesExist();
