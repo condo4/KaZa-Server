@@ -60,6 +60,7 @@ private slots:
                                QDateTime start, QDateTime end, quint8 step);
     void _processFrameSocketConnect(uint16_t socketId, const QString hostname, uint16_t port);
     void _processFrameSocketData(uint16_t socketId, QByteArray data);
+    void _processFrameSocketState(uint16_t socketId, uint16_t state);
     void _sockReadyRead();
     void _sockStateChange(QAbstractSocket::SocketState state);
 
@@ -68,6 +69,7 @@ private slots:
 
 private:
     QString idlog() const;
+    void _releaseSocket(uint16_t socketId);
 };
 
 #endif // KAZACONNECTION_H

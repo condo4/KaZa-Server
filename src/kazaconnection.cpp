@@ -37,6 +37,7 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::frameHistory, this, &KaZaConnection::_processFrameHistory);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketConnect, this, &KaZaConnection::_processFrameSocketConnect);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketData, this, &KaZaConnection::_processFrameSocketData);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameSocketState, this, &KaZaConnection::_processFrameSocketState);
 }
 
 quint16 KaZaConnection::id() const {
@@ -541,9 +542,38 @@ void KaZaConnection::_sockStateChange(QAbstractSocket::SocketState state)
     {
         uint16_t id = m_sockets.key(sock);
         m_protocol.sendSocketState(id, state);
+        // The tunnelled socket is over (remote close or connection failure): forget it,
+        // otherwise its id stays "allready used" and the socket lives as long as the session
+        if(state == QAbstractSocket::UnconnectedState)
+            _releaseSocket(id);
     }
     else
     {
         qWarning() << "Can't find socket on _sockStateChange";
     }
+}
+
+// The client closed its end of a tunnelled socket. Older clients also send every intermediate
+// state (connecting, connected...): only UnconnectedState means something, the rest is ignored.
+void KaZaConnection::_processFrameSocketState(uint16_t socketId, uint16_t state)
+{
+    if(state != QAbstractSocket::UnconnectedState)
+        return;
+    QTcpSocket *sock = m_sockets.value(socketId, nullptr);
+    if(!sock)
+        return;
+    // Let pending data be flushed; _sockStateChange releases the socket once it is closed
+    sock->disconnectFromHost();
+    if(sock->state() == QAbstractSocket::UnconnectedState)
+        _releaseSocket(socketId);
+}
+
+void KaZaConnection::_releaseSocket(uint16_t socketId)
+{
+    QTcpSocket *sock = m_sockets.take(socketId);
+    if(!sock)
+        return;
+    sock->disconnect(this);
+    sock->abort();
+    sock->deleteLater();
 }
