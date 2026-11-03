@@ -46,6 +46,9 @@ Minimum frame size: 5 bytes (type + length, zero-length payload).
 | 8 | `FRAME_OBJLIST` | server → client | Full compressed object list |
 | 9 | `FRAME_HISTORY` | client → server | Generic min/avg/max history request |
 | 10 | `FRAME_HISTORYRESULT` | server → client | Generic min/avg/max history result |
+| 11 | `FRAME_REQUEST` | client → server | Service request (name + key/value parameters) |
+| 12 | `FRAME_RESPONSE` | server → client | Service response (table, value or error) |
+| 13 | `FRAME_CANCEL` | client → server | Cancel a pending service request |
 | 255 | `FRAME_VERSION` | client → server | Version negotiation handshake |
 
 ---
@@ -329,6 +332,32 @@ QDataStream payload:
 in one refers to the same bucket as index *i* in the others. No `count` field
 is sent: it is only needed server-side to recompute weighted averages across
 rollup tables, not for rendering a min/avg/max chart.
+
+---
+
+## FRAME_REQUEST (11), FRAME_RESPONSE (12), FRAME_CANCEL (13)
+
+Generic request/response mechanism that replaces `FRAME_DBQUERY`: the client names a
+**service** declared in the server QML (`KzService`) and sends key/value parameters; the server
+validates them, runs the read-only SQL (or the QML handler) and answers. The client never sends
+or sees SQL. Full specification: [08-services.md](08-services.md).
+
+```
+FRAME_REQUEST   (QDataStream Qt_6_0): quint32 queryId, QString service, QVariantMap params
+FRAME_RESPONSE  (QDataStream Qt_6_0): quint32 queryId, quint8 status, QString errorCode, QString errorMessage,
+                                      quint8 kind, bool truncated, QByteArray payload
+FRAME_CANCEL    (QDataStream Qt_6_0): quint32 queryId
+```
+
+`kind`: 0 empty, 1 table (`QStringList columns`, `QList<QList<QVariant>> rows`), 2 value (`QVariant`);
+bit `0x80` = the payload is `qCompress`ed (done above 4096 bytes). `status`: 0 OK, 1 unknown/forbidden
+service, 2 invalid parameters (`errorCode` = parameter name), 3 timeout, 4 busy, 5 too large,
+6 unavailable, 7 internal. Receivers drop requests above 64 KiB or 64 parameters, responses above
+16 MiB uncompressed, and malformed frames, without closing the connection.
+
+Capability discovery: after `VERSION` the server sends the `SYSTEM` command `CAPS:services=1`
+(clients that do not know it ignore it). `SERVICES?` (client → server) returns `SERVICES:<base64 JSON>`
+describing the services visible to the user (name, description, parameters, `maxRows`).
 
 ---
 

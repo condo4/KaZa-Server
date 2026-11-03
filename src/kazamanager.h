@@ -8,6 +8,8 @@
 #include <QSslServer>
 #include <QSqlDatabase>
 #include <QHash>
+#include <QJSValue>
+#include "kazaservicemanager.h"
 
 // #define DEBUG_KNX
 // #define DEBUG_CONNECTION
@@ -35,6 +37,7 @@ class KaZaManager : public QObject
     bool m_initialized {false};
     QSqlDatabase m_database;
     QHash<QString, KaZaUser*> m_users;
+    KaZaServiceManager m_services;
 
     static KaZaManager *m_instance;
 
@@ -59,6 +62,9 @@ public:
 
 public slots:
     bool runDbQuery(const QString &query);
+    // Read-only query (see KaZaServiceManager::runQuery). `callback(result)` is called later with
+    // { ok, status, errorCode, columns, rows, truncated }, rows being arrays of values.
+    void query(const QString &sql, const QVariantMap &bindings, const QJSValue &callback);
     void notify(QString message);
     void logTemperature(const QVariant &rawid, const QString &name, const QVariant &value);
     void logMeasurement(const QString &domain, const QVariant &rawid, const QString &name, const QVariant &value);

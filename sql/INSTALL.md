@@ -35,3 +35,20 @@ CREATE EXTENSION pg_cron;
 -- Doit retourner une table vide sans erreur
 SELECT * FROM cron.job;
 ```
+
+# Droits des tables lues par les services
+
+`kazad` se connecte avec le rôle de `[database] username` (par défaut `kaza`). Toute table exposée par un service
+(`KzService`, voir `doc/08-services.md`) doit être lisible par ce rôle. Les scripts `ecowitt.sql` et `ecowitt_daily.sql`
+(`KaZaTrespeyres/Server/`) font `ALTER TABLE … OWNER TO kaza`. Pour une table créée autrement :
+
+```sql
+GRANT SELECT ON <table> TO kaza;
+```
+
+Vérification :
+
+```sql
+SELECT has_table_privilege('kaza', 'ecowitt', 'SELECT'),
+       has_table_privilege('kaza', 'ecowitt_daily', 'SELECT');
+```

@@ -58,6 +58,8 @@ private slots:
     void _processFrameDbQuery(uint32_t queryId, QString query);
     void _processFrameHistory(uint32_t queryId, QString domain, QString object,
                                QDateTime start, QDateTime end, quint8 step);
+    void _processFrameServiceRequest(quint32 id, QString service, QVariantMap params);
+    void _processFrameServiceCancel(quint32 id);
     void _processFrameSocketConnect(uint16_t socketId, const QString hostname, uint16_t port);
     void _processFrameSocketData(uint16_t socketId, QByteArray data);
     void _processFrameSocketState(uint16_t socketId, uint16_t state);

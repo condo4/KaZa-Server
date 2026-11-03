@@ -214,10 +214,110 @@ kazamanager.runDbQuery(
 )
 ```
 
+### Read-only query with bound values
+
+```qml
+kazamanager.query(
+    "SELECT avg(temp) AS t FROM ecowitt WHERE time > :since",
+    { since: new Date(Date.now() - 3600 * 1000) },
+    function(result) {
+        // result = { ok, status, errorCode, columns, rows, truncated }, rows are arrays of values
+        if (result.ok)
+            console.debug("average:", result.rows[0][0])
+    })
+```
+
+`query` never blocks: the statement runs on the service worker pool inside a `READ ONLY`
+transaction with a timeout, and the callback is called later on the main thread. Rules: one
+`SELECT`/`WITH` statement, no comments, every `:name` placeholder must have a matching key in the
+bindings (numbers, booleans, strings, dates or null) and nothing else; at most 1000 rows.
+
 > **Security note**: `runDbQuery` performs no sanitisation. Never interpolate
 > values that come from external sources (network, client commands) into SQL
 > strings. For trusted internal values (KNX sensor readings, internal object
 > values) the risk is low, but prefer parameterised queries when available.
+
+---
+
+## Services: letting clients read data (`KzService`)
+
+Client applications must not send SQL. Instead, the server QML declares **services**: named,
+parameterised, read-only queries that clients call with key/value parameters. See
+[08-services.md](08-services.md) for the full specification and the protocol.
+
+### Declarative service (SQL)
+
+```qml
+import org.kazoe.kaza 1.0
+
+KaZaElement {
+    KzService {
+        name: "ecowitt.history"
+        description: "One quantity of the weather station, min/avg/max per step"
+        sql: "SELECT date_bin(:step::interval, time, TIMESTAMPTZ '2000-01-01 00:00:00+00') AS time,
+                     min(%metric%) AS min, avg(%metric%) AS avg, max(%metric%) AS max
+              FROM ecowitt WHERE time >= :start AND time < :end
+              GROUP BY 1 ORDER BY 1"
+        maxRows: 5000          // default 1000, hard limit 100000
+        timeout: 10000         // ms, default 10000, hard limit 60000
+        users: ["*"]           // or a list of user names
+        params: [
+            KzParam { name: "start"; type: KzParam.DateTime; required: true },
+            KzParam { name: "end";   type: KzParam.DateTime; required: true },
+            KzParam { name: "step";  type: KzParam.Enum; values: ["15 minutes", "1 hour", "1 day"]; defaultValue: "1 hour" },
+            KzParam { name: "metric"; type: KzParam.Identifier; values: ["temp", "humidity"]; required: true }
+        ]
+    }
+}
+```
+
+- `:name` is a **bound value**. `%name%` is replaced by one entry of the closed `values` list of a
+  `KzParam.Identifier` (column or table names). Nothing else is ever concatenated into the statement.
+- `KzParam` types: `Int`, `Double`, `Bool`, `String` (`maxLength`, default 256), `DateTime` (UTC),
+  `Enum` (bound, must belong to `values`), `Identifier`. Attributes: `required`, `defaultValue`, `min`, `max`.
+- `single: true` returns the first cell of the first row as a value instead of a table.
+- The declaration is checked when the QML loads. A service with an unsafe or inconsistent declaration
+  (several statements, comments, `$` or `?`, not starting with `SELECT`/`WITH`, placeholder without
+  `KzParam`, `%name%` without a closed list...) is **not registered** and the reason is logged.
+- Every statement runs in a `READ ONLY` transaction with a `statement_timeout`, even a `WITH` that tries
+  to write: PostgreSQL refuses it.
+- Clients get a status code, never SQL text or driver messages; those stay in the journal.
+
+### Scriptable service (JavaScript handler)
+
+For anything a single statement cannot express, give a `handler` instead of `sql`:
+
+```qml
+KzService {
+    name: "energy.summary"
+    params: [ KzParam { name: "since"; type: KzParam.DateTime; required: true } ]
+    handler: function(req) {
+        kazamanager.query("SELECT sum(kwh) FROM energy WHERE day >= :d", { d: req.params.since },
+            function(r) {
+                if (!r.ok) { req.fail("db"); return }
+                req.respondValue(r.rows[0][0])
+            })
+    }
+}
+```
+
+The handler runs on the **main thread** and must not block. `req.params` are already validated;
+`req.user` is the caller. Answer with `req.respondTable(columns, rows)`, `req.respondValue(v)`,
+`req.respondEmpty()`, `req.fail("code")` (code in `[a-z0-9_]`, other values become `internal`) or
+`req.invalid("param", "message")`; the answer may come later (from a `kazamanager.query` callback or a
+`Timer`). Only the first answer counts. An exception in the handler answers `INTERNAL` immediately; no
+answer within `timeout` answers `TIMEOUT`.
+
+### Server configuration
+
+Optional section of `/etc/kazad.conf`:
+
+```ini
+[services]
+workers=2        # SQL connections used by services
+maxInFlight=8    # simultaneous requests per client connection
+queueLimit=256   # waiting requests, all clients
+```
 
 ---
 

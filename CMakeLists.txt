@@ -33,6 +33,10 @@ add_executable(kazad
   src/kzalarm.h src/kzalarm.cpp
   src/internalobject.h src/internalobject.cpp
   src/kazacertificategenerator.h src/kazacertificategenerator.cpp
+  src/kzparam.h src/kzparam.cpp
+  src/kzservice.h src/kzservice.cpp
+  src/kzservicerequest.h src/kzservicerequest.cpp
+  src/kazaservicemanager.h src/kazaservicemanager.cpp
   ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.h ${KAZA_PROTOCOL_DIRECTORY}/kazaprotocol.cpp
   conf/kazad.service
   conf/postinst

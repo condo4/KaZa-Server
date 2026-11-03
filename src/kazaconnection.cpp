@@ -4,6 +4,10 @@
 #include "kzalarm.h"
 #include "kazauser.h"
 #include "historydomains.h"
+#include "kazaservicemanager.h"
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QPointer>
 #include <QTcpSocket>
 #include <QFile>
 #include <QTimer>
@@ -35,6 +39,8 @@ KaZaConnection::KaZaConnection(QTcpSocket *socket, QObject *parent)
     QObject::connect(&m_protocol, &KaZaProtocol::frameOject, this, &KaZaConnection::_processFrameObject);
     QObject::connect(&m_protocol, &KaZaProtocol::frameDbQuery, this, &KaZaConnection::_processFrameDbQuery);
     QObject::connect(&m_protocol, &KaZaProtocol::frameHistory, this, &KaZaConnection::_processFrameHistory);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameServiceRequest, this, &KaZaConnection::_processFrameServiceRequest);
+    QObject::connect(&m_protocol, &KaZaProtocol::frameServiceCancel, this, &KaZaConnection::_processFrameServiceCancel);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketConnect, this, &KaZaConnection::_processFrameSocketConnect);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketData, this, &KaZaConnection::_processFrameSocketData);
     QObject::connect(&m_protocol, &KaZaProtocol::frameSocketState, this, &KaZaConnection::_processFrameSocketState);
@@ -140,6 +146,8 @@ void KaZaConnection::_processVersionNegotiated(QString &username, QString &devic
 
     emit userAuthenticated();
 
+    // Capabilities: lets clients know which optional frames this server understands
+    m_protocol.sendCommand("CAPS:services=1");
     m_protocol.sendCommand("APP:" + KaZaManager::appChecksum());
 
     // Send all registered objects to client
@@ -173,6 +181,15 @@ void KaZaConnection::_processFrameSystem(const QString &command) {
         qDebug().noquote().nospace() << idlog() << ": System Asking application";
 #endif
         m_protocol.sendFile("APP", KaZaManager::appFilename());
+        return;
+    }
+
+    if(c[0] == "SERVICES?")
+    {
+        // Description of the services this user may call (for documentation / debug tools)
+        const KaZaServiceManager *services = KaZaServiceManager::instance();
+        const QJsonArray list = services ? services->describe(m_user) : QJsonArray();
+        m_protocol.sendCommand("SERVICES:" + QJsonDocument(list).toJson(QJsonDocument::Compact).toBase64());
         return;
     }
 
@@ -396,6 +413,42 @@ void KaZaConnection::_processFrameDbQuery(uint32_t queryId, QString query) {
     {
         qWarning() << "QUERY FAIL " + query;
     }
+}
+
+void KaZaConnection::_processFrameServiceRequest(quint32 queryId, QString service, QVariantMap params) {
+    // Version negotiation is mandatory - reject if not negotiated
+    if (!m_valid) {
+        qWarning().noquote().nospace() << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+
+    KaZaServiceManager *services = KaZaServiceManager::instance();
+    if(!services)
+    {
+        KaZaProtocol::ServiceResponse r;
+        r.id = queryId;
+        r.status = KaZaProtocol::ServiceUnavailable;
+        r.errorCode = QStringLiteral("database");
+        r.errorMessage = QStringLiteral("services unavailable");
+        m_protocol.sendServiceResponse(r);
+        return;
+    }
+    QPointer<KaZaConnection> self(this);
+    services->request(this, m_user, queryId, service, params, [self](const KaZaProtocol::ServiceResponse &r) {
+        if(self)
+            self->m_protocol.sendServiceResponse(r);
+    });
+}
+
+void KaZaConnection::_processFrameServiceCancel(quint32 queryId) {
+    if (!m_valid) {
+        qWarning().noquote().nospace() << id() << ": Rejecting frame - version not negotiated";
+        emit disconnectFromHost();
+        return;
+    }
+    if(KaZaServiceManager *services = KaZaServiceManager::instance())
+        services->cancel(this, queryId);
 }
 
 void KaZaConnection::_processFrameHistory(uint32_t queryId, QString domain, QString object,

@@ -10,6 +10,8 @@
 #include "kazacertificategenerator.h"
 #include "kazauser.h"
 #include "historydomains.h"
+#include "kzparam.h"
+#include "kzservice.h"
 
 #include <QUrl>
 #include <QQmlContext>
@@ -20,6 +22,7 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QDateTime>
+#include <QJSEngine>
 
 KaZaManager *KaZaManager::m_instance = {nullptr};
 
@@ -85,6 +88,8 @@ KaZaManager::KaZaManager(QObject *parent)
     qmlRegisterType<KzObject>("org.kazoe.kaza", 1, 0, "KzObject");
     qmlRegisterType<KzAlarm>("org.kazoe.kaza", 1, 0, "KzAlarm");
     qmlRegisterType<Scheduler>("org.kazoe.kaza", 1, 0, "Scheduler");
+    qmlRegisterType<KzParam>("org.kazoe.kaza", 1, 0, "KzParam");
+    qmlRegisterType<KzService>("org.kazoe.kaza", 1, 0, "KzService");
     if(!qmlconf.isEmpty())
     {
         qDebug() << "Start QML config" << qmlconf;
@@ -172,6 +177,20 @@ KaZaManager::KaZaManager(QObject *parent)
         {
             m_databaseReady = true;
         }
+
+        // Pool used by the KzService requests, independent from the connection above
+        ServiceDbConfig dbConfig;
+        dbConfig.driver = dbdriver;
+        dbConfig.dbName = m_settings.value("database/dbName").toString();
+        dbConfig.hostName = m_settings.value("database/hostname").toString();
+        dbConfig.port = m_settings.value("database/port").toInt();
+        dbConfig.userName = m_settings.value("database/username").toString();
+        dbConfig.password = m_settings.value("database/password").toString();
+        KaZaServiceManager::Limits limits;
+        limits.workers = m_settings.value("services/workers", limits.workers).toInt();
+        limits.maxInFlight = m_settings.value("services/maxInFlight", limits.maxInFlight).toInt();
+        limits.queueLimit = m_settings.value("services/queueLimit", limits.queueLimit).toInt();
+        m_services.start(dbConfig, limits);
     }
 
     // Mark initialization as successful
@@ -418,6 +437,11 @@ QPointer<KaZaUser> KaZaManager::findUser(const QString &username)
         return nullptr;
     }
     return m_instance->m_users.value(username, nullptr);
+}
+
+void KaZaManager::query(const QString &sql, const QVariantMap &bindings, const QJSValue &callback)
+{
+    m_services.queryScript(sql, bindings, callback, &engine);
 }
 
 bool KaZaManager::runDbQuery(const QString &query)
