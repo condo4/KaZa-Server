@@ -122,6 +122,13 @@ install(
 )
 
 install(
+    FILES conf/ufw-kaza
+    DESTINATION /etc/ufw/applications.d
+    RENAME kaza
+    COMPONENT bin
+)
+
+install(
     FILES conf/kazad.conf
     DESTINATION /usr/share/kazad
     COMPONENT bin

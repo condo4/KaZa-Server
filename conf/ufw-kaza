@@ -1,0 +1,4 @@
+[KaZa]
+title=KaZa Home Automation Server
+description=KaZa server daemon (kazad): client connections (mTLS) and services
+ports=1754,43500/tcp
